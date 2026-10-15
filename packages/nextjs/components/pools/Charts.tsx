@@ -222,3 +222,113 @@ export const BarList = ({
     </ul>
   );
 };
+
+/* ----------------------------------------------------------------------------
+ * Columns for a short run of equal periods (days). Each column explains itself on hover or focus.
+ * ------------------------------------------------------------------------- */
+
+export type Column = { label: string; value: number; note: string };
+
+export const ColumnChart = ({ columns, label, empty }: { columns: Column[]; label: string; empty: string }) => {
+  const max = Math.max(...columns.map(c => c.value), 0);
+  if (columns.length === 0 || max === 0) return <p className="text-sm opacity-70">{empty}</p>;
+  return (
+    <div role="group" aria-label={label}>
+      <div className="flex h-44 items-end gap-1 sm:gap-1.5">
+        {columns.map((c, i) => (
+          <div
+            key={`${c.label}-${i}`}
+            tabIndex={0}
+            aria-label={`${c.label}: ${c.note}`}
+            className="group relative flex h-full flex-1 items-end rounded-t-md outline-offset-2"
+          >
+            <div
+              className="w-full rounded-t-md bg-gradient-to-t from-primary/35 to-primary transition-[filter] group-hover:brightness-125 group-focus:brightness-125"
+              style={{
+                height: `${c.value > 0 ? Math.max((c.value / max) * 100, 4) : 1}%`,
+                opacity: c.value > 0 ? 1 : 0.25,
+              }}
+            />
+            <span
+              className={`pointer-events-none absolute bottom-full z-10 mb-1.5 hidden whitespace-nowrap rounded-md border border-base-300 bg-base-100 px-2 py-1 text-xs shadow-lg group-hover:block group-focus:block ${
+                i < 2 ? "left-0" : i > columns.length - 3 ? "right-0" : "left-1/2 -translate-x-1/2"
+              }`}
+            >
+              <strong>{c.label}</strong>, {c.note}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex justify-between text-xs opacity-60">
+        <span>{columns[0].label}</span>
+        <span>{columns[columns.length - 1].label}</span>
+      </div>
+    </div>
+  );
+};
+
+/* ----------------------------------------------------------------------------
+ * A ring split into two or three named parts, with the main figure in the middle.
+ * ------------------------------------------------------------------------- */
+
+export type DonutPart = { label: string; value: number; stroke: string; dot: string };
+
+export const Donut = ({
+  parts,
+  center,
+  sub,
+  label,
+  empty,
+}: {
+  parts: DonutPart[];
+  center: string;
+  sub: string;
+  label: string;
+  empty: string;
+}) => {
+  const total = parts.reduce((s, p) => s + p.value, 0);
+  if (total === 0) return <p className="text-sm opacity-70">{empty}</p>;
+  const C = 2 * Math.PI * 40;
+  const segments = parts
+    .filter(p => p.value > 0)
+    .reduce<{ part: DonutPart; start: number; len: number }[]>((acc, p) => {
+      const start = acc.length ? acc[acc.length - 1].start + acc[acc.length - 1].len : 0;
+      return [...acc, { part: p, start, len: (p.value / total) * C }];
+    }, []);
+  return (
+    <div className="flex flex-wrap items-center gap-6">
+      <div className="relative h-36 w-36 shrink-0" role="img" aria-label={label}>
+        <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+          <circle cx="50" cy="50" r="40" fill="none" strokeWidth="11" className="stroke-base-300" />
+          {segments.map(({ part, start, len }) => (
+            <circle
+              key={part.label}
+              cx="50"
+              cy="50"
+              r="40"
+              fill="none"
+              strokeWidth="11"
+              className={part.stroke}
+              strokeDasharray={`${Math.max(len - 1.5, 0.5)} ${C}`}
+              strokeDashoffset={-start}
+            />
+          ))}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-2xl font-semibold tabular">{center}</span>
+          <span className="text-xs opacity-60">{sub}</span>
+        </div>
+      </div>
+      <ul className="space-y-2 text-sm">
+        {parts.map(p => (
+          <li key={p.label} className="flex items-center gap-2">
+            <span className={`h-2.5 w-2.5 rounded-full ${p.dot}`} />
+            <span className="tabular">
+              <strong>{p.value}</strong> <span className="opacity-70">{p.label}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};

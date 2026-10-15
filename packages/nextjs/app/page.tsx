@@ -6,9 +6,12 @@ import type { NextPage } from "next";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { CountUp } from "~~/components/pools/CountUp";
 import { CategoryIcon } from "~~/components/pools/Cover";
+import { FeedList } from "~~/components/pools/FeedList";
 import { FundingBar } from "~~/components/pools/FundingBar";
 import { InitiativeCard } from "~~/components/pools/InitiativeCard";
+import { LiveTicker } from "~~/components/pools/LiveTicker";
 import { PeopleStrip } from "~~/components/pools/PeopleStrip";
+import { useFeed } from "~~/lib/feed";
 import { useDismissed } from "~~/lib/local";
 import {
   CATEGORIES,
@@ -70,6 +73,7 @@ const Home: NextPage = () => {
   const { data: events } = usePoolEvents();
   const now = useNow(60_000);
   const intro = useDismissed("home-intro");
+  const { items: feed } = useFeed(6);
 
   const pooled = sumEvents(events, "Contributed", "amount");
   const refunded = sumEvents(events, "Refunded", "amount");
@@ -135,14 +139,22 @@ const Home: NextPage = () => {
         </div>
       )}
 
-      <section className="space-y-8 pt-4 text-center sm:pt-10">
+      <LiveTicker />
+
+      <section className="relative isolate space-y-8 pt-4 text-center sm:pt-10">
+        <div className="aurora" aria-hidden="true">
+          <span className="aurora-blob a1" />
+          <span className="aurora-blob a2" />
+          <span className="aurora-blob a3" />
+        </div>
+        <div className="grid-bg" aria-hidden="true" />
         <div className="space-y-2">
           <p className="text-sm opacity-70">Pooled so far, held by the contract</p>
           <div
             className="flex flex-wrap items-baseline justify-center gap-x-3"
             aria-label={`${fmtAmount(pooled, 0)} ${TOKEN_SYMBOL}`}
           >
-            <span className="gold-text tabular text-6xl font-bold leading-none tracking-tight sm:text-7xl lg:text-8xl">
+            <span className="gold-text tabular text-6xl font-bold leading-none tracking-tight sm:text-8xl lg:text-9xl">
               <CountUp
                 value={Number(pooled) / 10 ** TOKEN_DECIMALS}
                 format={n => n.toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -157,7 +169,7 @@ const Home: NextPage = () => {
         </div>
 
         <div className="mx-auto max-w-3xl space-y-4">
-          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
             Fund work in steps. Pay only for what is delivered.
           </h1>
           <p className="mx-auto max-w-2xl text-lg leading-relaxed opacity-80">
@@ -166,7 +178,7 @@ const Home: NextPage = () => {
           </p>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
-          <Link href="/explore" className="btn btn-primary btn-lg">
+          <Link href="/explore" className="btn btn-primary btn-glow btn-lg">
             Explore initiatives
           </Link>
           <Link href="/create" className="btn btn-lg border-base-300 bg-base-100">
@@ -179,7 +191,7 @@ const Home: NextPage = () => {
         </p>
       </section>
 
-      <section className="glass space-y-6 p-5 sm:p-6" aria-label="Initiatives by stage">
+      <section className="glass tile space-y-6 p-5 sm:p-6" aria-label="Initiatives by stage">
         <div className="flex h-3 w-full gap-1 overflow-hidden rounded-full" aria-hidden="true">
           {listings.length === 0 ? (
             <div className="h-full w-full rounded-full bg-base-300" />
@@ -226,6 +238,31 @@ const Home: NextPage = () => {
             </dd>
           </div>
         </dl>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-end justify-between gap-4">
+          <h2 className="flex items-center gap-3 text-2xl font-semibold">
+            Happening now
+            <span className="live-dot" aria-hidden="true" />
+          </h2>
+          <Link href="/stats" className="link text-sm">
+            All activity and stats
+          </Link>
+        </div>
+        <div className="surface px-4 py-1 sm:px-5">
+          <FeedList
+            items={feed}
+            empty={
+              <>
+                Nothing has happened yet.{" "}
+                <Link href="/create" className="link">
+                  Start the first initiative.
+                </Link>
+              </>
+            }
+          />
+        </div>
       </section>
 
       <section className="space-y-4">

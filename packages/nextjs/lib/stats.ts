@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usePublicClient } from "wagmi";
-import { type Listing, type PoolEvent, usePoolEvents } from "~~/lib/pools";
+import { DAY, type Listing, type PoolEvent, TOKEN_DECIMALS, usePoolEvents } from "~~/lib/pools";
 
 /* ----------------------------------------------------------------------------
  * Block timestamps, cached for the life of the page so each block is read once
@@ -178,4 +178,80 @@ export function buildProfile(
     totalReceived: receiving.reduce((s, r) => s + r.paid, 0n),
     votesCast: Array.from(votes.values()).reduce((s, v) => s + v, 0),
   };
+}
+
+/* ----------------------------------------------------------------------------
+ * Analytics
+ * ------------------------------------------------------------------------- */
+
+export type DayBucket = { label: string; total: number; count: number };
+
+/** Contributions grouped by day for the last `days` days, oldest first. */
+export function dailyContributions(list: Contribution[], now: number, days = 14): DayBucket[] {
+  const todayStart = Math.floor(now / DAY) * DAY;
+  const first = todayStart - (days - 1) * DAY;
+  const out: DayBucket[] = Array.from({ length: days }, (_, i) => ({
+    label: new Date((first + i * DAY) * 1000).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    }),
+    total: 0,
+    count: 0,
+  }));
+  list.forEach(c => {
+    const idx = Math.floor((c.time - first) / DAY);
+    if (idx >= 0 && idx < days) {
+      out[idx].total += Number(c.amount) / 10 ** TOKEN_DECIMALS;
+      out[idx].count += 1;
+    }
+  });
+  return out;
+}
+
+/** How committee votes split between approve and reject. */
+export function voteSplit(events: PoolEvent[] | undefined) {
+  let approve = 0;
+  let reject = 0;
+  (events ?? [])
+    .filter(e => e.eventName === "ReviewVote")
+    .forEach(e => {
+      if (e.args.approve) approve += 1;
+      else reject += 1;
+    });
+  return { approve, reject };
+}
+
+export type CreatorStat = { proposer: `0x${string}`; initiatives: number; raised: bigint };
+
+export function topCreators(listings: Listing[], limit = 5): CreatorStat[] {
+  const map = new Map<string, CreatorStat>();
+  listings.forEach(l => {
+    const k = l.proposer.toLowerCase();
+    const cur = map.get(k) ?? { proposer: l.proposer, initiatives: 0, raised: 0n };
+    cur.initiatives += 1;
+    cur.raised += l.raised;
+    map.set(k, cur);
+  });
+  return Array.from(map.values())
+    .sort((a, b) => b.initiatives - a.initiatives || (b.raised > a.raised ? 1 : b.raised < a.raised ? -1 : 0))
+    .slice(0, limit);
+}
+
+export type GranteeStat = { grantee: `0x${string}`; paid: bigint; milestones: number };
+
+export function topGrantees(events: PoolEvent[] | undefined, limit = 5): GranteeStat[] {
+  const map = new Map<string, GranteeStat>();
+  (events ?? [])
+    .filter(e => e.eventName === "MilestoneApproved")
+    .forEach(e => {
+      const k = (e.args.grantee as string).toLowerCase();
+      const cur = map.get(k) ?? { grantee: e.args.grantee, paid: 0n, milestones: 0 };
+      cur.paid += e.args.amount as bigint;
+      cur.milestones += 1;
+      map.set(k, cur);
+    });
+  return Array.from(map.values())
+    .sort((a, b) => (b.paid > a.paid ? 1 : b.paid < a.paid ? -1 : 0))
+    .slice(0, limit);
 }
