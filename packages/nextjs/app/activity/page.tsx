@@ -291,7 +291,7 @@ const Activity: NextPage = () => {
             <h1 className="text-2xl font-bold">My activity</h1>
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm opacity-75">
               <span className="font-mono">{shortAddr(address)}</span>
-              <span className="badge badge-soft badge-info badge-sm">{targetNetwork.name}</span>
+              <span className="badge badge-ghost badge-sm">{targetNetwork.name}</span>
             </p>
           </div>
         </div>

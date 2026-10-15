@@ -11,7 +11,12 @@ export const AddressQRCodeModal = ({ address, modalId }: AddressQRCodeModalProps
   return (
     <>
       <div>
-        <input type="checkbox" id={`${modalId}`} className="modal-toggle" />
+        <input
+          type="checkbox"
+          id={`${modalId}`}
+          className="modal-toggle"
+          aria-label="Show the QR code for this address"
+        />
         <label htmlFor={`${modalId}`} className="modal cursor-pointer">
           <label className="modal-box relative">
             {/* dummy input to capture event onclick on modal box */}

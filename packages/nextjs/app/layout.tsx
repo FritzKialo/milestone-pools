@@ -12,8 +12,14 @@ export const metadata = getMetadata({
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
-    <html suppressHydrationWarning className={``}>
+    <html lang="en" suppressHydrationWarning>
       <body>
+        <a
+          href="#main"
+          className="btn btn-primary btn-sm sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50"
+        >
+          Skip to content
+        </a>
         <ThemeProvider forcedTheme="pools" enableSystem={false} defaultTheme="pools">
           <ScaffoldEthAppWithProviders>{children}</ScaffoldEthAppWithProviders>
         </ThemeProvider>

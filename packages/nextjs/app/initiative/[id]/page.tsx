@@ -2,13 +2,14 @@
 
 import { use, useMemo } from "react";
 import Link from "next/link";
-import { Address } from "@scaffold-ui/components";
 import type { NextPage } from "next";
 import { useReadContracts } from "wagmi";
 import { ArrowUpRightIcon } from "@heroicons/react/24/outline";
 import { ActionsPanel } from "~~/components/pools/ActionsPanel";
 import { ActivityLog } from "~~/components/pools/ActivityLog";
+import { AddressLine } from "~~/components/pools/AddressLine";
 import { StepChart } from "~~/components/pools/Charts";
+import { ContractLink } from "~~/components/pools/ContractLink";
 import { ContributeBox } from "~~/components/pools/ContributeBox";
 import { Cover } from "~~/components/pools/Cover";
 import { FaqList } from "~~/components/pools/FaqList";
@@ -20,7 +21,7 @@ import { SaveButton } from "~~/components/pools/SaveButton";
 import { ShareButton } from "~~/components/pools/ShareButton";
 import { StatusBadge } from "~~/components/pools/StatusBadge";
 import { TopBackers } from "~~/components/pools/TopBackers";
-import { useDeployedContractInfo, useScaffoldReadContract, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { useDeployedContractInfo, useScaffoldReadContract } from "~~/hooks/scaffold-eth";
 import {
   CATEGORIES,
   REVIEW_PERIOD,
@@ -42,7 +43,6 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
   const idNum = Number(idParam);
   const valid = Number.isInteger(idNum) && idNum > 0;
   const id = BigInt(valid ? idNum : 1);
-  const { targetNetwork } = useTargetNetwork();
   const now = useNow(15_000);
 
   const { data: pools } = useDeployedContractInfo({ contractName: "MilestonePools" });
@@ -146,19 +146,16 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
           <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
             <div className="flex items-center gap-2">
               <span className="opacity-60">Proposed by</span>
-              <Address address={item.proposer} chain={targetNetwork} />
+              <AddressLine address={item.proposer} />
               <Link href={`/profile/${item.proposer}`} className="link opacity-70">
                 Profile
               </Link>
             </div>
             <div className="flex items-center gap-2">
               <span className="opacity-60">Grantee</span>
-              {item.isRfp ? (
-                <span>To be chosen by the committee</span>
-              ) : (
-                <Address address={item.grantee} chain={targetNetwork} />
-              )}
+              {item.isRfp ? <span>To be chosen by the committee</span> : <AddressLine address={item.grantee} />}
             </div>
+            <ContractLink name="MilestonePools" label="Contract" className="text-sm" />
           </div>
         </div>
       </div>
@@ -236,7 +233,7 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
                 const voted = underReview && votes?.[k]?.status === "success" && votes[k].result === true;
                 return (
                   <li key={r} className="flex items-center justify-between gap-3 p-3">
-                    <Address address={r} chain={targetNetwork} />
+                    <AddressLine address={r} />
                     <div className="flex items-center gap-3">
                       <Link href={`/profile/${r}`} className="link text-sm opacity-70">
                         Profile

@@ -239,6 +239,7 @@ export const ColumnChart = ({ columns, label, empty }: { columns: Column[]; labe
           <div
             key={`${c.label}-${i}`}
             tabIndex={0}
+            role="img"
             aria-label={`${c.label}: ${c.note}`}
             className="group relative flex h-full flex-1 items-end rounded-t-md outline-offset-2"
           >

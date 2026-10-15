@@ -3,8 +3,10 @@ import Link from "next/link";
 import { hardhat } from "viem/chains";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { Logo } from "~~/components/Header";
+import { ContractLink } from "~~/components/pools/ContractLink";
 import { Faucet } from "~~/components/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
+import { REPO_URL } from "~~/lib/site";
 
 const COLUMNS = [
   {
@@ -49,7 +51,7 @@ export const Footer = () => {
           </div>
         </div>
       )}
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-[1.4fr_repeat(3,1fr)_1.6fr]">
         <div className="space-y-3">
           <Logo />
           <p className="max-w-xs text-sm opacity-70">
@@ -59,7 +61,7 @@ export const Footer = () => {
         </div>
         {COLUMNS.map(c => (
           <div key={c.title}>
-            <h4 className="mb-3 text-sm font-semibold">{c.title}</h4>
+            <h2 className="mb-3 text-sm font-semibold">{c.title}</h2>
             <ul className="space-y-2 text-sm">
               {c.links.map(l => (
                 <li key={l.href}>
@@ -71,6 +73,27 @@ export const Footer = () => {
             </ul>
           </div>
         ))}
+        <div>
+          <h2 className="mb-3 text-sm font-semibold">On-chain</h2>
+          <ul className="space-y-2 text-sm">
+            <li className="opacity-80">
+              Network: <strong>{targetNetwork.name}</strong>
+            </li>
+            <li>
+              <ContractLink name="MilestonePools" label="Pools" />
+            </li>
+            <li>
+              <ContractLink name="MockUSDC" label="USDC" />
+            </li>
+            {REPO_URL && (
+              <li>
+                <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className="opacity-70 hover:opacity-100">
+                  Source code
+                </a>
+              </li>
+            )}
+          </ul>
+        </div>
       </div>
       <div className="border-t border-base-300">
         <div className="mx-auto max-w-6xl px-4 py-5 text-sm opacity-70">

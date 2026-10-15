@@ -365,6 +365,7 @@ const ExploreInner = () => {
         </div>
       ) : (
         <>
+          <h2 className="sr-only">Results</h2>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm opacity-60">
               {shown.length} {shown.length === 1 ? "initiative" : "initiatives"}

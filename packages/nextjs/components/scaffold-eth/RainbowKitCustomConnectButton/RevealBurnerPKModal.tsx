@@ -27,7 +27,13 @@ export const RevealBurnerPKModal = () => {
   return (
     <>
       <div>
-        <input type="checkbox" id="reveal-burner-pk-modal" className="modal-toggle" ref={modalCheckboxRef} />
+        <input
+          type="checkbox"
+          id="reveal-burner-pk-modal"
+          className="modal-toggle"
+          aria-label="Show the burner wallet private key"
+          ref={modalCheckboxRef}
+        />
         <label htmlFor="reveal-burner-pk-modal" className="modal cursor-pointer">
           <label className="modal-box relative">
             {/* dummy input to capture event onclick on modal box */}
