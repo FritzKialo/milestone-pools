@@ -71,10 +71,14 @@ export function useWatchlist() {
 
 /** A hint or banner the visitor closed. Starts as dismissed on the server to avoid a flash. */
 export function useDismissed(key: string) {
-  const list = useSyncExternalStore(dismissedStore.subscribe, dismissedStore.get, () => [key]);
+  const dismissed = useSyncExternalStore(
+    dismissedStore.subscribe,
+    () => dismissedStore.get().includes(key),
+    () => true,
+  );
   const dismiss = useCallback(() => {
     const cur = dismissedStore.get();
     if (!cur.includes(key)) dismissedStore.set([...cur, key]);
   }, [key]);
-  return { dismissed: list.includes(key), dismiss };
+  return { dismissed, dismiss };
 }
