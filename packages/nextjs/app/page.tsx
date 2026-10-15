@@ -119,77 +119,80 @@ const Home: NextPage = () => {
   }, [listings]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-20 px-4 py-10 sm:py-14">
-      {!intro.dismissed && (
-        <div className="surface flex items-start justify-between gap-4 p-4 text-sm">
-          <p>
-            <strong>New here?</strong> Read{" "}
-            <Link href="/how-it-works" className="link">
-              how it works
-            </Link>{" "}
-            and the{" "}
-            <Link href="/terms" className="link">
-              risks
-            </Link>{" "}
-            before you contribute. It takes about three minutes.
-          </p>
-          <button className="btn btn-ghost btn-xs btn-circle" onClick={intro.dismiss} aria-label="Dismiss">
-            <XMarkIcon className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      <LiveTicker />
-
-      <section className="relative isolate space-y-8 pt-4 text-center sm:pt-10">
-        <div className="aurora" aria-hidden="true">
-          <span className="aurora-blob a1" />
-          <span className="aurora-blob a2" />
-          <span className="aurora-blob a3" />
-        </div>
-        <div className="grid-bg" aria-hidden="true" />
-        <div className="space-y-2">
-          <p className="text-sm opacity-70">Pooled so far, held by the contract</p>
-          <div
-            className="flex flex-wrap items-baseline justify-center gap-x-3"
-            aria-label={`${fmtAmount(pooled, 0)} ${TOKEN_SYMBOL}`}
-          >
-            <span className="gold-text tabular text-6xl font-bold leading-none tracking-tight sm:text-8xl lg:text-9xl">
-              <CountUp
-                value={Number(pooled) / 10 ** TOKEN_DECIMALS}
-                format={n => n.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              />
-            </span>
-            <span className="text-2xl font-semibold text-primary sm:text-3xl">{TOKEN_SYMBOL}</span>
+    <div className="mx-auto w-full max-w-6xl space-y-14 px-4 py-6 sm:space-y-20 sm:py-10">
+      <div className="space-y-4 sm:space-y-6">
+        {!intro.dismissed && (
+          <div className="surface flex items-start justify-between gap-4 p-4 text-sm">
+            <p>
+              <strong>New here?</strong> Read{" "}
+              <Link href="/how-it-works" className="link">
+                how it works
+              </Link>{" "}
+              and the{" "}
+              <Link href="/terms" className="link">
+                risks
+              </Link>{" "}
+              before you contribute. It takes about three minutes.
+            </p>
+            <button className="btn btn-ghost btn-xs btn-circle" onClick={intro.dismiss} aria-label="Dismiss">
+              <XMarkIcon className="h-4 w-4" />
+            </button>
           </div>
-          <p className="text-sm opacity-70">
-            across {listings.length} {listings.length === 1 ? "initiative" : "initiatives"} from {uniqueBackers}{" "}
-            {uniqueBackers === 1 ? "backer" : "backers"}
-          </p>
-        </div>
+        )}
 
-        <div className="mx-auto max-w-3xl space-y-4">
-          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
-            Fund work in steps. Pay only for what is delivered.
-          </h1>
-          <p className="mx-auto max-w-2xl text-lg leading-relaxed opacity-80">
-            A review committee, fixed from the start, approves each milestone before it is paid. If the work stalls,
-            what has not been paid out can be refunded.
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-center gap-3">
-          <Link href="/explore" className="btn btn-primary btn-glow btn-lg">
-            Explore initiatives
-          </Link>
-          <Link href="/create" className="btn btn-lg border-base-300 bg-base-100">
-            Start one
-          </Link>
-        </div>
-        <p className="mx-auto max-w-xl text-xs opacity-60">
-          Unaudited software. Reviewers are people, and a dishonest majority can release money for work that was not
-          done.
-        </p>
-      </section>
+        <LiveTicker />
+
+        <section className="relative isolate grid items-center gap-6 pt-2 sm:pt-6 lg:grid-cols-[1.15fr_1fr] lg:gap-10">
+          <div className="aurora" aria-hidden="true">
+            <span className="aurora-blob a1" />
+            <span className="aurora-blob a2" />
+            <span className="aurora-blob a3" />
+          </div>
+          <div className="grid-bg" aria-hidden="true" />
+
+          <div className="space-y-5 text-center lg:text-left">
+            <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+              Fund work in steps. Pay only for what is delivered.
+            </h1>
+            <p className="mx-auto max-w-xl text-base leading-relaxed opacity-80 sm:text-lg lg:mx-0">
+              A review committee, fixed from the start, approves each milestone before it is paid. If the work stalls,
+              what has not been paid out can be refunded.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3 lg:justify-start">
+              <Link href="/explore" className="btn btn-primary btn-glow btn-lg">
+                Explore initiatives
+              </Link>
+              <Link href="/create" className="btn btn-lg border-base-300 bg-base-100">
+                Start one
+              </Link>
+            </div>
+            <p className="mx-auto max-w-md text-xs opacity-60 lg:mx-0">
+              Unaudited software. Reviewers are people, and a dishonest majority can release money for work that was not
+              done.
+            </p>
+          </div>
+
+          <div className="glass tile space-y-1 p-5 text-center sm:p-7">
+            <p className="text-sm opacity-70">Pooled so far, held by the contract</p>
+            <div
+              className="flex flex-wrap items-baseline justify-center gap-x-3"
+              aria-label={`${fmtAmount(pooled, 0)} ${TOKEN_SYMBOL}`}
+            >
+              <span className="gold-text tabular text-5xl font-bold leading-none tracking-tight sm:text-7xl lg:text-6xl xl:text-7xl">
+                <CountUp
+                  value={Number(pooled) / 10 ** TOKEN_DECIMALS}
+                  format={n => n.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                />
+              </span>
+              <span className="text-xl font-semibold text-primary sm:text-2xl">{TOKEN_SYMBOL}</span>
+            </div>
+            <p className="pt-2 text-sm opacity-70">
+              across {listings.length} {listings.length === 1 ? "initiative" : "initiatives"} from {uniqueBackers}{" "}
+              {uniqueBackers === 1 ? "backer" : "backers"}
+            </p>
+          </div>
+        </section>
+      </div>
 
       <section className="glass tile space-y-6 p-5 sm:p-6" aria-label="Initiatives by stage">
         <div className="flex h-3 w-full gap-1 overflow-hidden rounded-full" aria-hidden="true">

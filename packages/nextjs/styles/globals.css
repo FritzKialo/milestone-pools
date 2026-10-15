@@ -224,7 +224,7 @@ details > summary::-webkit-details-marker {
   top: -5rem;
   z-index: -10;
   width: 100vw;
-  height: 46rem;
+  height: 32rem;
   transform: translateX(-50%);
   overflow: hidden;
   pointer-events: none;
