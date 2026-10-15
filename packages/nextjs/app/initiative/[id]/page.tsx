@@ -1,17 +1,25 @@
 "use client";
 
-import { use } from "react";
+import { use, useMemo } from "react";
 import Link from "next/link";
 import { Address } from "@scaffold-ui/components";
 import type { NextPage } from "next";
 import { useReadContracts } from "wagmi";
+import { ArrowUpRightIcon } from "@heroicons/react/24/outline";
 import { ActionsPanel } from "~~/components/pools/ActionsPanel";
 import { ActivityLog } from "~~/components/pools/ActivityLog";
+import { StepChart } from "~~/components/pools/Charts";
 import { ContributeBox } from "~~/components/pools/ContributeBox";
+import { Cover } from "~~/components/pools/Cover";
+import { FaqList } from "~~/components/pools/FaqList";
 import { FundingBar } from "~~/components/pools/FundingBar";
+import { Hint } from "~~/components/pools/Hint";
 import { MilestoneTimeline } from "~~/components/pools/MilestoneTimeline";
 import { RfpPanel } from "~~/components/pools/RfpPanel";
+import { SaveButton } from "~~/components/pools/SaveButton";
+import { ShareButton } from "~~/components/pools/ShareButton";
 import { StatusBadge } from "~~/components/pools/StatusBadge";
+import { TopBackers } from "~~/components/pools/TopBackers";
 import { useDeployedContractInfo, useScaffoldReadContract, useTargetNetwork } from "~~/hooks/scaffold-eth";
 import {
   CATEGORIES,
@@ -27,6 +35,7 @@ import {
   useNow,
   usePoolEvents,
 } from "~~/lib/pools";
+import { cumulative, topBackers, useContributions } from "~~/lib/stats";
 
 const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params }) => {
   const { id: idParam } = use(params);
@@ -58,12 +67,17 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
     query: { enabled: valid },
   });
   const { data: events } = usePoolEvents();
+  const { data: allContributions } = useContributions();
 
   const reviewers = ((reviewersRaw as readonly `0x${string}`[] | undefined) ?? []) as `0x${string}`[];
   const item = raw ? normalise(idNum, raw) : undefined;
   const metadataURI = (eventsFor(events, "InitiativeDetails", idNum)[0]?.args.metadataURI as string | undefined) ?? "";
   const meta = useMetadata(metadataURI, idNum);
   const category = Number(eventsFor(events, "InitiativeCreated", idNum)[0]?.args.category ?? CATEGORIES.length - 1);
+
+  const mine = useMemo(() => allContributions.filter(c => c.id === idNum), [allContributions, idNum]);
+  const series = useMemo(() => cumulative(mine), [mine]);
+  const backers = useMemo(() => topBackers(mine, 5), [mine]);
 
   // Review progress per committee member for the open review.
   const { data: votes } = useReadContracts({
@@ -89,13 +103,23 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
     );
   }
 
-  const planArr = plan as readonly bigint[];
+  const planArr = [...(plan as readonly bigint[])];
   const evidence = eventsFor(events, "MilestoneSubmitted", idNum)
     .filter(e => Number(e.args.milestone) === item.currentMilestone)
     .map(e => e.args.evidenceURI as string)
     .pop();
   const underReview = item.status === "Active" && item.phase === "UnderReview";
   const qualified = isQualified(item);
+  const isOpen = item.status === "Funding" && now <= item.fundingDeadline;
+
+  const nav = [
+    { href: "#about", label: "About", show: true },
+    { href: "#milestones", label: "Milestones", show: true },
+    { href: "#committee", label: "Committee", show: true },
+    { href: "#backers", label: "Backers", show: true },
+    { href: "#faq", label: "Questions", show: !!meta.faq },
+    { href: "#activity", label: "Activity", show: true },
+  ].filter(n => n.show);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8">
@@ -103,78 +127,115 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
         &larr; All initiatives
       </Link>
 
-      <div className="mt-3 mb-8 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={item.status} />
-          <span className="badge badge-ghost">{CATEGORIES[category] ?? "Other"}</span>
-          {item.isRfp && <span className="badge badge-outline">Open call</span>}
-        </div>
-        <h1 className="text-3xl font-bold leading-tight">{meta.title}</h1>
-        {meta.summary && <p className="text-lg opacity-80 max-w-3xl">{meta.summary}</p>}
-        <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="opacity-60">Proposed by</span>
-            <Address address={item.proposer} chain={targetNetwork} />
+      <div className="surface mt-4 overflow-hidden">
+        <Cover image={meta.image} category={category} className="h-44 sm:h-56" />
+        <div className="space-y-4 p-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={item.status} />
+            <span className="badge badge-ghost">{CATEGORIES[category] ?? "Other"}</span>
+            {item.isRfp && <span className="badge badge-outline">Open call</span>}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="opacity-60">Grantee</span>
-            {item.isRfp ? (
-              <span>To be chosen by the committee</span>
-            ) : (
-              <Address address={item.grantee} chain={targetNetwork} />
-            )}
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <h1 className="max-w-3xl text-3xl font-bold leading-tight">{meta.title}</h1>
+            <div className="flex gap-2">
+              <SaveButton id={idNum} label />
+              <ShareButton />
+            </div>
+          </div>
+          {meta.summary && <p className="max-w-3xl text-lg opacity-80">{meta.summary}</p>}
+          <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="opacity-60">Proposed by</span>
+              <Address address={item.proposer} chain={targetNetwork} />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="opacity-60">Grantee</span>
+              {item.isRfp ? (
+                <span>To be chosen by the committee</span>
+              ) : (
+                <Address address={item.grantee} chain={targetNetwork} />
+              )}
+            </div>
           </div>
         </div>
       </div>
 
+      <nav className="my-6 flex flex-wrap gap-x-5 gap-y-1 text-sm" aria-label="On this page">
+        {nav.map(n => (
+          <a key={n.href} href={n.href} className="link opacity-70 hover:opacity-100">
+            {n.label}
+          </a>
+        ))}
+      </nav>
+
       <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
-        <div className="space-y-10 min-w-0">
-          {meta.body && (
-            <section>
-              <h2 className="text-xl font-semibold mb-3">About</h2>
-              <p className="whitespace-pre-wrap leading-relaxed">{meta.body}</p>
-            </section>
-          )}
+        <div className="min-w-0 space-y-12">
+          <section id="about" className="scroll-mt-24 space-y-4">
+            <h2 className="text-xl font-semibold">About</h2>
+            {meta.body ? (
+              <p className="prose-block whitespace-pre-wrap">{meta.body}</p>
+            ) : (
+              <p className="text-sm opacity-70">The creator did not add further details.</p>
+            )}
+            {meta.links && (
+              <ul className="flex flex-wrap gap-2 pt-1">
+                {meta.links.map(l => (
+                  <li key={l.url}>
+                    <a
+                      href={l.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="btn btn-sm gap-1.5 border-base-300 bg-base-100"
+                    >
+                      {l.label}
+                      <ArrowUpRightIcon className="h-3.5 w-3.5" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           {item.status === "Selecting" && (
-            <section>
-              <h2 className="text-xl font-semibold mb-3">Choosing the grantee</h2>
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold">Choosing the grantee</h2>
               <RfpPanel item={item} reviewers={reviewers} />
             </section>
           )}
 
-          <section>
-            <h2 className="text-xl font-semibold mb-1">Milestones</h2>
+          <section id="milestones" className="scroll-mt-24 space-y-4">
+            <h2 className="text-xl font-semibold">Milestones</h2>
             {item.status === "Funding" && item.raised < item.goal && (
-              <p className="text-sm opacity-70 mb-4">
+              <p className="text-sm opacity-70">
                 If funding ends below the goal but above the minimum, every milestone is scaled down in proportion to
                 what was raised.
               </p>
             )}
-            <div className="mt-4">
-              <MilestoneTimeline
-                item={item}
-                plan={[...planArr]}
-                titles={meta.milestones}
-                evidenceURI={underReview ? evidence : undefined}
-              />
-            </div>
+            <MilestoneTimeline
+              item={item}
+              plan={planArr}
+              titles={meta.milestones}
+              evidenceURI={underReview ? evidence : undefined}
+            />
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold mb-1">Review committee</h2>
-            <p className="text-sm opacity-70 mb-3">
+          <section id="committee" className="scroll-mt-24 space-y-3">
+            <h2 className="flex items-center gap-2 text-xl font-semibold">
+              Review committee
+              <Hint text="These wallets decide if each milestone was delivered. They were chosen by the creator and cannot be changed." />
+            </h2>
+            <p className="text-sm opacity-70">
               {item.threshold} of {item.reviewerCount} must approve each milestone. The committee is fixed when the
               initiative is created and cannot be changed.
             </p>
-            <ul className="divide-y divide-base-300 border border-base-300">
+            <ul className="surface divide-y divide-base-300">
               {reviewers.map((r, k) => {
                 const voted = underReview && votes?.[k]?.status === "success" && votes[k].result === true;
                 return (
-                  <li key={r} className="p-3 flex items-center justify-between gap-3">
+                  <li key={r} className="flex items-center justify-between gap-3 p-3">
                     <Address address={r} chain={targetNetwork} />
                     {underReview && (
-                      <span className={`badge ${voted ? "badge-success" : "badge-ghost"}`}>
+                      <span className={`badge badge-soft ${voted ? "badge-success" : ""}`}>
                         {voted ? "Voted" : "Not yet voted"}
                       </span>
                     )}
@@ -183,23 +244,52 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
               })}
             </ul>
             {underReview && (
-              <p className="text-xs opacity-60 mt-2">
+              <p className="text-xs opacity-60">
                 Voting closes {fmtDateTime(item.reviewStartedAt + REVIEW_PERIOD)}. A vote&apos;s direction is recorded
                 in the activity log below.
               </p>
             )}
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold mb-3">Activity</h2>
+          <section id="backers" className="scroll-mt-24 space-y-6">
+            <h2 className="text-xl font-semibold">Backers</h2>
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="surface space-y-3 p-5">
+                <h3 className="font-semibold">Pooled over time</h3>
+                <StepChart points={series} height={170} label={`Total pooled in ${TOKEN_SYMBOL} over time`} />
+              </div>
+              <div className="surface space-y-3 p-5">
+                <h3 className="font-semibold">Largest backers</h3>
+                <TopBackers backers={backers} total={item.raised} />
+              </div>
+            </div>
+          </section>
+
+          {meta.faq && (
+            <section id="faq" className="scroll-mt-24 space-y-3">
+              <h2 className="text-xl font-semibold">Questions from the creator</h2>
+              <FaqList items={meta.faq.map(f => ({ q: f.q, a: <p className="whitespace-pre-wrap">{f.a}</p> }))} />
+            </section>
+          )}
+
+          <section id="activity" className="scroll-mt-24 space-y-3">
+            <h2 className="text-xl font-semibold">Activity</h2>
             <ActivityLog id={idNum} />
           </section>
         </div>
 
-        <aside className="space-y-6">
-          <div className="border border-base-300 p-5 space-y-4">
-            <FundingBar raised={item.raised} goal={item.goal} qualifyBps={item.qualifyBps} />
-            <dl className="grid grid-cols-2 gap-y-2 text-sm">
+        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <div className="surface space-y-5 p-5">
+            <FundingBar
+              raised={item.raised}
+              goal={item.goal}
+              qualifyBps={item.qualifyBps}
+              plan={planArr}
+              status={item.status}
+              currentMilestone={item.currentMilestone}
+              phase={item.phase}
+            />
+            <dl className="grid grid-cols-2 gap-y-2 text-sm tabular">
               <dt className="opacity-60">Backers</dt>
               <dd className="text-right">{item.backers}</dd>
               <dt className="opacity-60">Paid out so far</dt>
@@ -210,7 +300,12 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
                 <>
                   <dt className="opacity-60">Funding ends</dt>
                   <dd className="text-right">{timeLeft(item.fundingDeadline, now)}</dd>
-                  <dt className="opacity-60">Will it go ahead?</dt>
+                  <dt className="opacity-60">
+                    Will it go ahead?{" "}
+                    <Hint
+                      text={`It goes ahead if at least ${item.qualifyBps / 100}% of the goal is raised by the deadline. Below that, everyone is refunded.`}
+                    />
+                  </dt>
                   <dd className="text-right">{qualified ? "Yes, minimum reached" : "Not yet"}</dd>
                 </>
               )}
@@ -223,10 +318,23 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
                 </>
               )}
             </dl>
-            {item.status === "Funding" && now <= item.fundingDeadline && <ContributeBox item={item} />}
+            {isOpen && <ContributeBox item={item} />}
+            {!isOpen && item.status === "Funding" && (
+              <p className="text-sm opacity-70">
+                The funding period has ended. Anyone can close it, which decides whether this goes ahead.
+              </p>
+            )}
           </div>
 
           <ActionsPanel item={item} reviewers={reviewers} />
+
+          <p className="text-xs leading-relaxed opacity-60">
+            Contributions go to a smart contract, not to the creator. Read the{" "}
+            <Link href="/terms" className="link">
+              risks
+            </Link>{" "}
+            before contributing.
+          </p>
         </aside>
       </div>
     </div>
@@ -234,7 +342,7 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
 };
 
 const Notice = ({ title }: { title: string }) => (
-  <div className="mx-auto max-w-xl px-4 py-24 text-center space-y-4">
+  <div className="mx-auto max-w-xl space-y-4 px-4 py-24 text-center">
     <h1 className="text-2xl font-bold">{title}</h1>
     <Link href="/explore" className="btn btn-primary">
       Back to Explore

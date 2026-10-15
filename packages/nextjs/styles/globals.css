@@ -5,100 +5,87 @@
 @theme {
   --shadow-center: 0 0 12px -2px rgb(0 0 0 / 0.05);
   --animate-pulse-fast: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
 @plugin "daisyui" {
-  themes:
-    light,
-    dark --prefersdark;
+  themes: light --default;
 }
 
 @plugin "daisyui/theme" {
   name: "light";
+  default: true;
+  color-scheme: light;
 
-  --color-primary: #93bbfb;
-  --color-primary-content: #212638;
-  --color-secondary: #dae8ff;
-  --color-secondary-content: #212638;
-  --color-accent: #93bbfb;
-  --color-accent-content: #212638;
-  --color-neutral: #212638;
+  --color-primary: #12202f;
+  --color-primary-content: #ffffff;
+  --color-secondary: #e7eee9;
+  --color-secondary-content: #12202f;
+  --color-accent: #0f8a5f;
+  --color-accent-content: #ffffff;
+  --color-neutral: #12202f;
   --color-neutral-content: #ffffff;
   --color-base-100: #ffffff;
-  --color-base-200: #f4f8ff;
-  --color-base-300: #dae8ff;
-  --color-base-content: #212638;
-  --color-info: #93bbfb;
-  --color-success: #34eeb6;
-  --color-warning: #ffcf72;
-  --color-error: #ff8863;
+  --color-base-200: #f5f6f4;
+  --color-base-300: #e2e6e1;
+  --color-base-content: #12202f;
+  --color-info: #2b6cb0;
+  --color-info-content: #ffffff;
+  --color-success: #0f8a5f;
+  --color-success-content: #ffffff;
+  --color-warning: #c27a0e;
+  --color-warning-content: #ffffff;
+  --color-error: #c0392b;
+  --color-error-content: #ffffff;
 
-  --radius-field: 0rem;
-  --radius-box: 0rem;
-  --radius-selector: 0rem;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
 
-  --tt-tailw: 6px;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
 }
 
-@plugin "daisyui/theme" {
-  name: "dark";
-
-  --color-primary: #212638;
-  --color-primary-content: #f9fbff;
-  --color-secondary: #323f61;
-  --color-secondary-content: #f9fbff;
-  --color-accent: #4969a6;
-  --color-accent-content: #f9fbff;
-  --color-neutral: #f9fbff;
-  --color-neutral-content: #385183;
-  --color-base-100: #385183;
-  --color-base-200: #2a3655;
-  --color-base-300: #212638;
-  --color-base-content: #f9fbff;
-  --color-info: #385183;
-  --color-success: #34eeb6;
-  --color-warning: #ffcf72;
-  --color-error: #ff8863;
-
-  --radius-field: 0rem;
-  --radius-box: 0rem;
-  --radius-selector: 0rem;
-
-  --tt-tailw: 6px;
-  --tt-bg: var(--color-primary);
-}
-
-/*
-  The default border color has changed to `currentColor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
 @layer base {
   *,
   ::after,
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentColor);
+    border-color: var(--color-base-300, currentColor);
   }
 
-  p {
-    margin: 1rem 0;
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   body {
     min-height: 100vh;
+    overflow-x: clip;
+    font-family: var(--font-sans);
+    background: var(--color-base-200);
+    color: var(--color-base-content);
+  }
+
+  p {
+    margin: 0;
   }
 
   h1,
   h2,
   h3,
   h4 {
-    margin-bottom: 0.5rem;
-    line-height: 1;
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-info);
+    outline-offset: 2px;
   }
 }
 
@@ -109,12 +96,41 @@
 
 .btn {
   box-shadow: none;
+  font-weight: 600;
 }
 
 .link {
-  text-underline-offset: 2px;
+  text-underline-offset: 3px;
 }
 
-.link:hover {
-  opacity: 80%;
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.surface {
+  background: var(--color-base-100);
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+}
+
+.prose-block {
+  max-width: 68ch;
+  line-height: 1.7;
+}
+
+details > summary {
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::after,
+  ::before {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

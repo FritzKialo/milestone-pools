@@ -62,12 +62,21 @@ export type Initiative = {
   isRfp: boolean;
 };
 
+export type MetaLink = { label: string; url: string };
+export type MetaFaq = { q: string; a: string };
+
 export type Metadata = {
   title: string;
   summary: string;
   body?: string;
   milestones?: string[];
+  image?: string;
+  links?: MetaLink[];
+  faq?: MetaFaq[];
 };
+
+export const MAX_LINKS = 5;
+export const MAX_FAQ = 6;
 
 export type Listing = Initiative & {
   category: number;
@@ -97,7 +106,7 @@ export const parseAmount = (s: string): bigint | null => {
   }
 };
 
-export const shortAddr = (a: string) => `${a.slice(0, 6)}\u2026${a.slice(-4)}`;
+export const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 export const fmtDate = (ts: number) =>
   new Date(ts * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
@@ -149,11 +158,31 @@ export const encodeMetadata = (m: Metadata) => `data:application/json;base64,${t
 const sanitize = (raw: unknown, fallbackTitle: string): Metadata => {
   const r = (raw ?? {}) as Record<string, unknown>;
   const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+  const arr = (v: unknown, max: number) => (Array.isArray(v) ? (v.slice(0, max) as unknown[]) : []);
+  const httpsOnly = (v: unknown, max: number) => {
+    const u = str(v, max).trim();
+    return u.startsWith("https://") ? u : "";
+  };
+  const links = arr(r.links, MAX_LINKS)
+    .map(x => {
+      const o = (x ?? {}) as Record<string, unknown>;
+      return { label: str(o.label, 40).trim(), url: httpsOnly(o.url, 300) };
+    })
+    .filter(l => l.label && l.url);
+  const faq = arr(r.faq, MAX_FAQ)
+    .map(x => {
+      const o = (x ?? {}) as Record<string, unknown>;
+      return { q: str(o.q, 160).trim(), a: str(o.a, 600).trim() };
+    })
+    .filter(f => f.q && f.a);
   return {
     title: str(r.title, 120) || fallbackTitle,
     summary: str(r.summary, 800),
     body: str(r.body, 6000) || undefined,
     milestones: Array.isArray(r.milestones) ? r.milestones.slice(0, MAX_MILESTONES).map(x => str(x, 160)) : undefined,
+    image: httpsOnly(r.image, 500) || undefined,
+    links: links.length ? links : undefined,
+    faq: faq.length ? faq : undefined,
   };
 };
 

@@ -18,8 +18,10 @@ type HeaderMenuLink = {
 export const menuLinks: HeaderMenuLink[] = [
   { label: "Explore", href: "/explore" },
   { label: "Create", href: "/create" },
+  { label: "Stats", href: "/stats" },
+  { label: "How it works", href: "/how-it-works" },
+  { label: "FAQ", href: "/faq" },
   { label: "My activity", href: "/activity" },
-  { label: "Terms & Risks", href: "/terms" },
   { label: "Debug", href: "/debug", icon: <BugAntIcon className="h-4 w-4" />, localOnly: true },
 ];
 
@@ -39,9 +41,12 @@ export const HeaderMenuLinks = () => {
               <Link
                 href={href}
                 passHref
+                aria-current={isActive ? "page" : undefined}
                 className={`${
-                  isActive ? "bg-base-300" : ""
-                } hover:bg-base-300 focus:!bg-base-300 h-full px-4 text-sm gap-2 flex items-center whitespace-nowrap`}
+                  isActive ? "font-semibold text-base-content" : "text-base-content/70"
+                } relative flex h-full items-center gap-2 whitespace-nowrap px-3 text-sm hover:text-base-content ${
+                  isActive ? "after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-base-content" : ""
+                }`}
               >
                 {icon}
                 <span>{label}</span>
@@ -52,6 +57,17 @@ export const HeaderMenuLinks = () => {
     </>
   );
 };
+
+export const Logo = ({ className = "" }: { className?: string }) => (
+  <span className={`inline-flex items-center gap-2.5 ${className}`}>
+    <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+      <rect x="1" y="14" width="7" height="11" rx="2" fill="#0f8a5f" />
+      <rect x="9.5" y="8" width="7" height="17" rx="2" fill="#0f8a5f" fillOpacity="0.6" />
+      <rect x="18" y="1" width="7" height="24" rx="2" fill="#12202f" />
+    </svg>
+    <span className="text-lg font-bold tracking-tight max-[440px]:sr-only">Milestone Pools</span>
+  </span>
+);
 
 /**
  * Site header
@@ -66,32 +82,38 @@ export const Header = () => {
   });
 
   return (
-    <div className="sticky lg:static top-0 navbar bg-base-100 min-h-16 shrink-0 justify-between z-20 border-b-2 border-base-300 p-0 sm:px-2">
-      <div className="navbar-start w-auto self-stretch">
-        <details className="dropdown" ref={burgerMenuRef}>
-          <summary className="ml-1 btn btn-ghost lg:hidden hover:bg-transparent">
-            <Bars3Icon className="h-1/2" />
-          </summary>
-          <ul
-            className="menu menu-compact dropdown-content mt-3 p-2 shadow-lg bg-base-100 w-52"
-            onClick={() => {
-              burgerMenuRef?.current?.removeAttribute("open");
-            }}
-          >
+    <header className="sticky top-0 z-30 min-h-16 shrink-0 border-b border-base-300 bg-base-100/95 backdrop-blur">
+      <div className="navbar mx-auto max-w-6xl justify-between p-0 px-2 sm:px-4">
+        <div className="navbar-start w-auto self-stretch">
+          <details className="dropdown" ref={burgerMenuRef}>
+            <summary className="btn btn-ghost lg:hidden hover:bg-transparent">
+              <Bars3Icon className="h-6 w-6" />
+            </summary>
+            <ul
+              className="menu menu-compact dropdown-content mt-3 w-52 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg"
+              onClick={() => {
+                burgerMenuRef?.current?.removeAttribute("open");
+              }}
+            >
+              <HeaderMenuLinks />
+            </ul>
+          </details>
+          <Link href="/" passHref className="mr-2 ml-1 flex shrink-0 items-center sm:mr-6 sm:ml-2">
+            <Logo />
+          </Link>
+          <ul className="m-0 hidden h-16 list-none p-0 lg:flex lg:flex-nowrap">
             <HeaderMenuLinks />
           </ul>
-        </details>
-        <Link href="/" passHref className="flex items-center gap-2 ml-3 mr-6 shrink-0">
-          <span className="font-bold text-lg tracking-tight">Milestone Pools</span>
-        </Link>
-        <ul className="hidden lg:flex lg:flex-nowrap h-full m-0 p-0 list-none">
-          <HeaderMenuLinks />
-        </ul>
+        </div>
+        <div className="navbar-end grow">
+          <RainbowKitCustomConnectButton />
+          {isLocalNetwork && (
+            <div className="max-sm:hidden">
+              <FaucetButton />
+            </div>
+          )}
+        </div>
       </div>
-      <div className="navbar-end grow mr-4">
-        <RainbowKitCustomConnectButton />
-        {isLocalNetwork && <FaucetButton />}
-      </div>
-    </div>
+    </header>
   );
 };

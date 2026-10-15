@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckIcon } from "@heroicons/react/24/solid";
 import { type Initiative, REVIEW_PERIOD, TOKEN_SYMBOL, fmtAmount, fmtDateTime, safeLink } from "~~/lib/pools";
 
 type Props = {
@@ -13,7 +14,7 @@ type State = "paid" | "review" | "waiting" | "upcoming" | "stopped";
 
 export const MilestoneTimeline = ({ item, plan, titles, evidenceURI }: Props) => {
   const stateOf = (m: number): State => {
-    if (m < item.currentMilestone) return "paid";
+    if (m < item.currentMilestone || item.status === "Completed") return "paid";
     if (item.status === "Failed" || item.status === "Cancelled") return "stopped";
     if (item.status === "Active" && m === item.currentMilestone) {
       return item.phase === "UnderReview" ? "review" : "waiting";
@@ -24,33 +25,37 @@ export const MilestoneTimeline = ({ item, plan, titles, evidenceURI }: Props) =>
   const link = evidenceURI ? safeLink(evidenceURI) : null;
 
   return (
-    <ol className="space-y-0">
+    <ol>
       {plan.map((amount, m) => {
         const s = stateOf(m);
         return (
           <li key={m} className="flex gap-4">
             <div className="flex flex-col items-center">
               <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center border text-sm font-semibold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
                   s === "paid"
-                    ? "bg-success text-success-content border-success"
-                    : s === "review" || s === "waiting"
-                      ? "border-primary bg-primary text-primary-content"
-                      : "border-base-300"
+                    ? "border-success bg-success text-success-content"
+                    : s === "review"
+                      ? "border-warning bg-warning text-warning-content"
+                      : s === "waiting"
+                        ? "border-primary bg-primary text-primary-content"
+                        : "border-base-300 bg-base-100 opacity-70"
                 }`}
               >
-                {s === "paid" ? "\u2713" : m + 1}
+                {s === "paid" ? <CheckIcon className="h-4 w-4" /> : m + 1}
               </div>
-              {m < plan.length - 1 && <div className="w-px grow bg-base-300 min-h-6" />}
+              {m < plan.length - 1 && (
+                <div className={`min-h-6 w-px grow ${s === "paid" ? "bg-success" : "bg-base-300"}`} />
+              )}
             </div>
-            <div className="pb-6 grow">
+            <div className="grow pb-7">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="font-medium">{titles?.[m] || `Milestone ${m + 1}`}</span>
-                <span className="text-sm">
+                <span className="text-sm tabular">
                   {fmtAmount(amount)} {TOKEN_SYMBOL}
                 </span>
               </div>
-              <p className="text-sm opacity-70 mt-0.5">
+              <p className="mt-0.5 text-sm opacity-70">
                 {s === "paid" && "Approved and paid out."}
                 {s === "upcoming" && item.status === "Funding" && "Starts once funding goes ahead."}
                 {s === "upcoming" && item.status !== "Funding" && "Not started."}
@@ -63,7 +68,7 @@ export const MilestoneTimeline = ({ item, plan, titles, evidenceURI }: Props) =>
                   )}.`}
               </p>
               {s === "review" && evidenceURI && (
-                <p className="text-sm mt-1">
+                <p className="mt-1 text-sm">
                   Evidence:{" "}
                   {link ? (
                     <a className="link break-all" href={link} target="_blank" rel="noreferrer">

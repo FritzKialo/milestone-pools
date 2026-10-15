@@ -6,7 +6,7 @@ const STYLE: Record<StatusName, string> = {
   Active: "badge-success",
   Completed: "badge-neutral",
   Failed: "badge-error",
-  Cancelled: "badge-error badge-outline",
+  Cancelled: "badge-error",
 };
 
 const LABEL: Record<StatusName, string> = {
@@ -19,5 +19,8 @@ const LABEL: Record<StatusName, string> = {
 };
 
 export const StatusBadge = ({ status }: { status: StatusName }) => (
-  <span className={`badge ${STYLE[status]} font-medium`}>{LABEL[status]}</span>
+  <span className={`badge badge-soft ${STYLE[status]} gap-1.5 font-medium`}>
+    <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+    {LABEL[status]}
+  </span>
 );
