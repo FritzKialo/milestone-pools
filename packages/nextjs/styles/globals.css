@@ -1,7 +1,5 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
-
 @theme {
   --shadow-center: 0 0 12px -2px rgb(0 0 0 / 0.05);
   --animate-pulse-fast: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -10,42 +8,54 @@
 }
 
 @plugin "daisyui" {
-  themes: light --default;
+  themes: false;
 }
 
 @plugin "daisyui/theme" {
-  name: "light";
+  name: "pools";
   default: true;
-  color-scheme: light;
+  color-scheme: dark;
 
-  --color-primary: #12202f;
-  --color-primary-content: #ffffff;
-  --color-secondary: #e7eee9;
-  --color-secondary-content: #12202f;
-  --color-accent: #0f8a5f;
-  --color-accent-content: #ffffff;
-  --color-neutral: #12202f;
-  --color-neutral-content: #ffffff;
-  --color-base-100: #ffffff;
-  --color-base-200: #f5f6f4;
-  --color-base-300: #e2e6e1;
-  --color-base-content: #12202f;
-  --color-info: #2b6cb0;
-  --color-info-content: #ffffff;
-  --color-success: #0f8a5f;
-  --color-success-content: #ffffff;
-  --color-warning: #c27a0e;
-  --color-warning-content: #ffffff;
-  --color-error: #c0392b;
-  --color-error-content: #ffffff;
+  --color-primary: #f0b64a;
+  --color-primary-content: #1a1305;
+  --color-secondary: #1b2f26;
+  --color-secondary-content: #e8efe9;
+  --color-accent: #4fcf99;
+  --color-accent-content: #04210f;
+  --color-neutral: #1b2f26;
+  --color-neutral-content: #e8efe9;
+  --color-base-100: #12201a;
+  --color-base-200: #0b1410;
+  --color-base-300: #243629;
+  --color-base-content: #e8efe9;
+  --color-info: #7aa7f5;
+  --color-info-content: #07142b;
+  --color-success: #4fcf99;
+  --color-success-content: #04210f;
+  --color-warning: #f08a5d;
+  --color-warning-content: #2a1005;
+  --color-error: #f26b6b;
+  --color-error-content: #2d0707;
 
   --radius-selector: 0.5rem;
   --radius-field: 0.5rem;
-  --radius-box: 0.75rem;
+  --radius-box: 0.875rem;
 
   --border: 1px;
   --depth: 0;
   --noise: 0;
+}
+
+/* Colours for the address component from the scaffold UI kit, matched to this theme. */
+:root[data-theme="pools"],
+[data-theme="pools"] * {
+  --color-sui-primary: #12201a;
+  --color-sui-primary-subtle: #243629;
+  --color-sui-primary-neutral: #1b2f26;
+  --color-sui-primary-content: #e8efe9;
+  --color-sui-accent: #f0b64a;
+  --color-sui-base-content: #e8efe9;
+  --color-sui-input-text: rgb(232 239 233 / 0.7);
 }
 
 @layer base {
@@ -68,14 +78,14 @@
     overflow-x: clip;
     font-family: var(--font-sans);
     background:
-      radial-gradient(60rem 26rem at 10% -8rem, rgb(15 138 95 / 0.09), transparent 70%),
-      radial-gradient(50rem 22rem at 94% -6rem, rgb(43 108 176 / 0.07), transparent 70%), var(--color-base-200);
+      radial-gradient(72rem 30rem at 50% -12rem, rgb(52 130 98 / 0.38), transparent 70%),
+      radial-gradient(44rem 24rem at 100% 6rem, rgb(240 182 74 / 0.08), transparent 70%), var(--color-base-200);
     background-repeat: no-repeat;
     color: var(--color-base-content);
   }
 
   ::selection {
-    background: rgb(15 138 95 / 0.22);
+    background: rgb(240 182 74 / 0.3);
   }
 
   p {
@@ -143,8 +153,8 @@ summary {
 }
 
 .card-link:hover {
-  border-color: color-mix(in oklab, var(--color-base-content) 35%, transparent);
-  box-shadow: 0 10px 28px -14px rgb(18 32 47 / 0.28);
+  border-color: color-mix(in oklab, var(--color-primary) 55%, var(--color-base-300));
+  box-shadow: 0 14px 34px -16px rgb(0 0 0 / 0.7);
   transform: translateY(-2px);
 }
 
@@ -167,6 +177,30 @@ summary {
 
 details[open] > :not(summary) {
   animation: fade-in 0.25s ease-out;
+}
+
+.glass {
+  background: color-mix(in oklab, var(--color-base-100) 72%, transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+}
+
+.gold-text {
+  background: linear-gradient(180deg, #fff1cf 0%, #f0b64a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.scroll-row {
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.scroll-row > * {
+  scroll-snap-align: start;
 }
 
 .prose-block {

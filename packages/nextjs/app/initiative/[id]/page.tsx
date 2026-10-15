@@ -147,6 +147,9 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
             <div className="flex items-center gap-2">
               <span className="opacity-60">Proposed by</span>
               <Address address={item.proposer} chain={targetNetwork} />
+              <Link href={`/profile/${item.proposer}`} className="link opacity-70">
+                Profile
+              </Link>
             </div>
             <div className="flex items-center gap-2">
               <span className="opacity-60">Grantee</span>
@@ -234,11 +237,16 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
                 return (
                   <li key={r} className="flex items-center justify-between gap-3 p-3">
                     <Address address={r} chain={targetNetwork} />
-                    {underReview && (
-                      <span className={`badge badge-soft ${voted ? "badge-success" : ""}`}>
-                        {voted ? "Voted" : "Not yet voted"}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-3">
+                      <Link href={`/profile/${r}`} className="link text-sm opacity-70">
+                        Profile
+                      </Link>
+                      {underReview && (
+                        <span className={`badge badge-soft ${voted ? "badge-success" : ""}`}>
+                          {voted ? "Voted" : "Not yet voted"}
+                        </span>
+                      )}
+                    </div>
                   </li>
                 );
               })}

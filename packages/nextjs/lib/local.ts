@@ -53,11 +53,22 @@ function makeStore<T>(key: string, empty: T, valid: (v: unknown) => v is T): Sto
 const isNumberArray = (v: unknown): v is number[] => Array.isArray(v) && v.every(x => Number.isInteger(x));
 const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every(x => typeof x === "string");
 
+const isViewMode = (v: unknown): v is "cards" | "table" => v === "cards" || v === "table";
+
 const EMPTY_NUMBERS: number[] = [];
 const EMPTY_STRINGS: string[] = [];
 
 const savedStore = makeStore<number[]>("milestone-pools:saved", EMPTY_NUMBERS, isNumberArray);
 const dismissedStore = makeStore<string[]>("milestone-pools:dismissed", EMPTY_STRINGS, isStringArray);
+
+const viewStore = makeStore<"cards" | "table">("milestone-pools:view", "cards", isViewMode);
+
+/** Whether Explore shows cards or a table. Remembered in this browser only. */
+export function useViewMode() {
+  const view = useSyncExternalStore(viewStore.subscribe, viewStore.get, () => "cards" as const);
+  const setView = useCallback((v: "cards" | "table") => viewStore.set(v), []);
+  return { view, setView };
+}
 
 /** Initiatives the visitor starred, kept in this browser only. */
 export function useWatchlist() {
@@ -71,6 +82,7 @@ export function useWatchlist() {
 
 /** A hint or banner the visitor closed. Starts as dismissed on the server to avoid a flash. */
 export function useDismissed(key: string) {
+  // The snapshot is a boolean so React always sees a stable value (a new array each call causes an infinite loop).
   const dismissed = useSyncExternalStore(
     dismissedStore.subscribe,
     () => dismissedStore.get().includes(key),

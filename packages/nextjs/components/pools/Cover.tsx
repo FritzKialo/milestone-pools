@@ -24,14 +24,14 @@ const ICONS = [
 ];
 
 const TINTS: [string, string][] = [
-  ["#dcefe6", "#bfe3d1"],
-  ["#e3ecf8", "#c9dcf3"],
-  ["#e7e8f1", "#d0d3e6"],
-  ["#f1e8f5", "#e0cdea"],
-  ["#fbeedb", "#f4d9b0"],
-  ["#e4eee8", "#cde0d3"],
-  ["#f7e4e4", "#efc7c7"],
-  ["#ececea", "#dcdcd8"],
+  ["#1c4a38", "#0f2a20"],
+  ["#1c3a5c", "#102338"],
+  ["#2e2e5a", "#1b1b36"],
+  ["#43295c", "#241837"],
+  ["#5a4216", "#33260e"],
+  ["#1a4d39", "#102e22"],
+  ["#5a2424", "#331515"],
+  ["#33403a", "#1d2320"],
 ];
 
 export const CategoryIcon = ({ category, className }: { category: number; className?: string }) => {
@@ -65,8 +65,10 @@ export const Cover = ({ image, category, className = "h-28" }: Props) => {
 
   return (
     <div
-      className={`${className} w-full flex items-end justify-end p-4 text-primary/40`}
-      style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
+      className={`${className} w-full flex items-end justify-end p-4 text-base-content/30`}
+      style={{
+        background: `radial-gradient(circle at 82% 18%, rgb(255 255 255 / 0.1), transparent 55%), linear-gradient(135deg, ${from}, ${to})`,
+      }}
       aria-hidden="true"
     >
       <CategoryIcon category={category} className="h-12 w-12" />

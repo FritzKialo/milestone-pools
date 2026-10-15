@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usePublicClient } from "wagmi";
-import { type PoolEvent, usePoolEvents } from "~~/lib/pools";
+import { type Listing, type PoolEvent, usePoolEvents } from "~~/lib/pools";
 
 /* ----------------------------------------------------------------------------
  * Block timestamps, cached for the life of the page so each block is read once
@@ -101,3 +101,81 @@ export function topBackers(list: Contribution[], limit = 5): BackerTotal[] {
 
 export const sumEvents = (events: PoolEvent[] | undefined, name: string, field: string) =>
   (events ?? []).filter(e => e.eventName === name).reduce((s, e) => s + ((e.args?.[field] as bigint) ?? 0n), 0n);
+
+/* ----------------------------------------------------------------------------
+ * Reviewers and wallet profiles
+ * ------------------------------------------------------------------------- */
+
+export type ReviewerStat = { reviewer: `0x${string}`; votes: number; committees: number };
+
+const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/** Reviewers ranked by votes cast, then by how many committees they sit on. */
+export function topReviewers(events: PoolEvent[] | undefined, listings: Listing[], limit = 5): ReviewerStat[] {
+  const map = new Map<string, ReviewerStat>();
+  const entry = (addr: `0x${string}`) => {
+    const k = addr.toLowerCase();
+    const cur = map.get(k) ?? { reviewer: addr, votes: 0, committees: 0 };
+    map.set(k, cur);
+    return cur;
+  };
+  listings.forEach(l => l.reviewers.forEach(r => (entry(r).committees += 1)));
+  (events ?? []).filter(e => e.eventName === "ReviewVote").forEach(e => (entry(e.args.reviewer).votes += 1));
+  return Array.from(map.values())
+    .sort((a, b) => b.votes - a.votes || b.committees - a.committees)
+    .slice(0, limit);
+}
+
+export type Profile = {
+  backed: { id: number; total: bigint; count: number }[];
+  created: number[];
+  reviewing: { id: number; votes: number }[];
+  receiving: { id: number; paid: bigint }[];
+  totalBacked: bigint;
+  totalReceived: bigint;
+  votesCast: number;
+};
+
+export function buildProfile(
+  address: string,
+  listings: Listing[],
+  contributions: Contribution[],
+  events: PoolEvent[] | undefined,
+): Profile {
+  const backedMap = new Map<number, { id: number; total: bigint; count: number }>();
+  contributions
+    .filter(c => same(c.funder, address))
+    .forEach(c => {
+      const cur = backedMap.get(c.id) ?? { id: c.id, total: 0n, count: 0 };
+      cur.total += c.amount;
+      cur.count += 1;
+      backedMap.set(c.id, cur);
+    });
+  const backed = Array.from(backedMap.values()).sort((a, b) => b.id - a.id);
+
+  const votes = new Map<number, number>();
+  (events ?? [])
+    .filter(e => e.eventName === "ReviewVote" && same(e.args.reviewer, address))
+    .forEach(e => votes.set(Number(e.args.id), (votes.get(Number(e.args.id)) ?? 0) + 1));
+
+  const paid = new Map<number, bigint>();
+  (events ?? [])
+    .filter(e => e.eventName === "MilestoneApproved" && same(e.args.grantee, address))
+    .forEach(e => paid.set(Number(e.args.id), (paid.get(Number(e.args.id)) ?? 0n) + (e.args.amount as bigint)));
+
+  const created = listings.filter(l => same(l.proposer, address)).map(l => l.id);
+  const reviewing = listings
+    .filter(l => l.reviewers.some(r => same(r, address)))
+    .map(l => ({ id: l.id, votes: votes.get(l.id) ?? 0 }));
+  const receiving = listings.filter(l => same(l.grantee, address)).map(l => ({ id: l.id, paid: paid.get(l.id) ?? 0n }));
+
+  return {
+    backed,
+    created: created.sort((a, b) => b - a),
+    reviewing: reviewing.sort((a, b) => b.id - a.id),
+    receiving: receiving.sort((a, b) => b.id - a.id),
+    totalBacked: backed.reduce((s, b) => s + b.total, 0n),
+    totalReceived: receiving.reduce((s, r) => s + r.paid, 0n),
+    votesCast: Array.from(votes.values()).reduce((s, v) => s + v, 0),
+  };
+}

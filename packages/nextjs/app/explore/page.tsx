@@ -7,8 +7,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { NextPage } from "next";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { InitiativeCard } from "~~/components/pools/InitiativeCard";
+import { InitiativeTable } from "~~/components/pools/InitiativeTable";
 import { CardGridSkeleton } from "~~/components/pools/Skeletons";
-import { useWatchlist } from "~~/lib/local";
+import { ViewToggle } from "~~/components/pools/ViewToggle";
+import { useViewMode, useWatchlist } from "~~/lib/local";
 import { CATEGORIES, type Listing, isClosedBad, isQualified, loadMetadata, useListings } from "~~/lib/pools";
 
 type StatusFilter = "all" | "funding" | "active" | "completed" | "closed";
@@ -46,6 +48,7 @@ const ExploreInner = () => {
   const params = useSearchParams();
   const { listings, isLoading } = useListings();
   const { saved } = useWatchlist();
+  const { view, setView } = useViewMode();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [category, setCategory] = useState<number | "all">(parseCategory(params.get("category")));
   const [status, setStatus] = useState<StatusFilter>(
@@ -116,7 +119,7 @@ const ExploreInner = () => {
       </div>
 
       <div className="surface mb-6 space-y-4 p-4">
-        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
           <label className="input input-bordered flex w-full items-center gap-2 bg-base-100">
             <MagnifyingGlassIcon className="h-4 w-4 opacity-60" />
             <input
@@ -138,6 +141,7 @@ const ExploreInner = () => {
             <option value="funded">Most funded</option>
             <option value="backers">Most backers</option>
           </select>
+          <ViewToggle view={view} onChange={setView} />
         </div>
 
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Category">
@@ -225,11 +229,15 @@ const ExploreInner = () => {
           <p className="mb-3 text-sm opacity-60">
             {shown.length} {shown.length === 1 ? "initiative" : "initiatives"}
           </p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {shown.map(l => (
-              <InitiativeCard key={l.id} item={l} />
-            ))}
-          </div>
+          {view === "table" ? (
+            <InitiativeTable items={shown} />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {shown.map(l => (
+                <InitiativeCard key={l.id} item={l} />
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>

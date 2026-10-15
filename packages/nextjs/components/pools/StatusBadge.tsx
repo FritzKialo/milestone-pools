@@ -4,7 +4,7 @@ const STYLE: Record<StatusName, string> = {
   Funding: "badge-info",
   Selecting: "badge-warning",
   Active: "badge-success",
-  Completed: "badge-neutral",
+  Completed: "badge-primary",
   Failed: "badge-error",
   Cancelled: "badge-error",
 };

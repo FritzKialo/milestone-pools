@@ -61,9 +61,9 @@ export const HeaderMenuLinks = () => {
 export const Logo = ({ className = "" }: { className?: string }) => (
   <span className={`inline-flex items-center gap-2.5 ${className}`}>
     <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-      <rect x="1" y="14" width="7" height="11" rx="2" fill="#0f8a5f" />
-      <rect x="9.5" y="8" width="7" height="17" rx="2" fill="#0f8a5f" fillOpacity="0.6" />
-      <rect x="18" y="1" width="7" height="24" rx="2" fill="#12202f" />
+      <rect x="1" y="14" width="7" height="11" rx="2" fill="#4fcf99" />
+      <rect x="9.5" y="8" width="7" height="17" rx="2" fill="#4fcf99" fillOpacity="0.6" />
+      <rect x="18" y="1" width="7" height="24" rx="2" fill="#f0b64a" />
     </svg>
     <span className="text-lg font-bold tracking-tight max-[440px]:sr-only">Milestone Pools</span>
   </span>
@@ -82,7 +82,7 @@ export const Header = () => {
   });
 
   return (
-    <header className="sticky top-0 z-30 min-h-16 shrink-0 border-b border-base-300 bg-base-100/95 backdrop-blur">
+    <header className="sticky top-0 z-30 min-h-16 shrink-0 border-b border-base-300 bg-base-200/80 backdrop-blur-md">
       <div className="navbar mx-auto max-w-6xl justify-between p-0 px-2 sm:px-4">
         <div className="navbar-start w-auto self-stretch">
           <details className="dropdown" ref={burgerMenuRef}>

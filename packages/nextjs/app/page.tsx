@@ -4,12 +4,23 @@ import { useMemo } from "react";
 import Link from "next/link";
 import type { NextPage } from "next";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { CountUp } from "~~/components/pools/CountUp";
 import { CategoryIcon } from "~~/components/pools/Cover";
 import { FundingBar } from "~~/components/pools/FundingBar";
 import { InitiativeCard } from "~~/components/pools/InitiativeCard";
+import { PeopleStrip } from "~~/components/pools/PeopleStrip";
 import { useDismissed } from "~~/lib/local";
-import { CATEGORIES, DAY, TOKEN_SYMBOL, fmtAmount, useListings, useNow } from "~~/lib/pools";
-import { useContributions } from "~~/lib/stats";
+import {
+  CATEGORIES,
+  DAY,
+  TOKEN_DECIMALS,
+  TOKEN_SYMBOL,
+  fmtAmount,
+  useListings,
+  useNow,
+  usePoolEvents,
+} from "~~/lib/pools";
+import { sumEvents, topBackers, topReviewers, useContributions } from "~~/lib/stats";
 
 const STEPS = [
   {
@@ -56,12 +67,26 @@ const SAMPLE_PLAN = [3000000000n, 4000000000n, 3000000000n];
 const Home: NextPage = () => {
   const { listings } = useListings();
   const { data: contributions } = useContributions();
+  const { data: events } = usePoolEvents();
   const now = useNow(60_000);
   const intro = useDismissed("home-intro");
 
-  const raised = listings.reduce((s, l) => s + l.raised, 0n);
+  const pooled = sumEvents(events, "Contributed", "amount");
+  const refunded = sumEvents(events, "Refunded", "amount");
   const paid = listings.reduce((s, l) => s + l.released, 0n);
-  const backers = listings.reduce((s, l) => s + l.backers, 0);
+  const uniqueBackers = useMemo(() => new Set(contributions.map(c => c.funder.toLowerCase())).size, [contributions]);
+  const leaders = useMemo(() => topBackers(contributions, 6), [contributions]);
+  const reviewerBoard = useMemo(() => topReviewers(events, listings, 6), [events, listings]);
+
+  const stages = useMemo(() => {
+    const n = (f: (l: (typeof listings)[number]) => boolean) => listings.filter(f).length;
+    return [
+      { label: "Open for funding", n: n(l => l.status === "Funding"), tone: "bg-info" },
+      { label: "In progress", n: n(l => l.status === "Active" || l.status === "Selecting"), tone: "bg-success" },
+      { label: "Completed", n: n(l => l.status === "Completed"), tone: "bg-primary" },
+      { label: "Ended early", n: n(l => l.status === "Failed" || l.status === "Cancelled"), tone: "bg-error" },
+    ];
+  }, [listings]);
 
   const closingSoon = useMemo(
     () =>
@@ -110,78 +135,102 @@ const Home: NextPage = () => {
         </div>
       )}
 
-      <section className="grid items-center gap-10 lg:grid-cols-[1.15fr_1fr]">
-        <div className="space-y-6">
-          <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
+      <section className="space-y-8 pt-4 text-center sm:pt-10">
+        <div className="space-y-2">
+          <p className="text-sm opacity-70">Pooled so far, held by the contract</p>
+          <div
+            className="flex flex-wrap items-baseline justify-center gap-x-3"
+            aria-label={`${fmtAmount(pooled, 0)} ${TOKEN_SYMBOL}`}
+          >
+            <span className="gold-text tabular text-6xl font-bold leading-none tracking-tight sm:text-7xl lg:text-8xl">
+              <CountUp
+                value={Number(pooled) / 10 ** TOKEN_DECIMALS}
+                format={n => n.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              />
+            </span>
+            <span className="text-2xl font-semibold text-primary sm:text-3xl">{TOKEN_SYMBOL}</span>
+          </div>
+          <p className="text-sm opacity-70">
+            across {listings.length} {listings.length === 1 ? "initiative" : "initiatives"} from {uniqueBackers}{" "}
+            {uniqueBackers === 1 ? "backer" : "backers"}
+          </p>
+        </div>
+
+        <div className="mx-auto max-w-3xl space-y-4">
+          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             Fund work in steps. Pay only for what is delivered.
           </h1>
-          <p className="max-w-xl text-lg leading-relaxed opacity-80">
-            Contributions are held by a smart contract that nobody controls. A review committee, fixed from the start,
-            approves each milestone before it is paid. If the work stalls, what has not been paid out can be refunded.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/explore" className="btn btn-primary btn-lg">
-              Explore initiatives
-            </Link>
-            <Link href="/create" className="btn btn-lg border-base-300 bg-base-100">
-              Start one
-            </Link>
-          </div>
-          <p className="max-w-xl text-sm opacity-60">
-            Unaudited software. Reviewers are people, and a dishonest majority can release money for work that was not
-            done.
+          <p className="mx-auto max-w-2xl text-lg leading-relaxed opacity-80">
+            A review committee, fixed from the start, approves each milestone before it is paid. If the work stalls,
+            what has not been paid out can be refunded.
           </p>
         </div>
-
-        <div className="surface space-y-5 p-6 shadow-sm" aria-label="Example of how a pool pays out">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">Example: community workshop series</span>
-            <span className="opacity-60">Sample</span>
-          </div>
-          <FundingBar
-            raised={8_000_000_000n}
-            goal={10_000_000_000n}
-            qualifyBps={5000}
-            plan={SAMPLE_PLAN}
-            status="Active"
-            currentMilestone={1}
-            phase="UnderReview"
-          />
-          <ul className="space-y-3 text-sm">
-            <li className="flex items-center gap-3">
-              <span className="h-2.5 w-8 rounded-full bg-success" />
-              <span>
-                <strong>Milestone 1</strong> approved, 3,000 {TOKEN_SYMBOL} paid
-              </span>
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="h-2.5 w-8 rounded-full bg-warning" />
-              <span>
-                <strong>Milestone 2</strong> under review, 2 of 3 approvals needed
-              </span>
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="h-2.5 w-8 rounded-full bg-success/20" />
-              <span>
-                <strong>Milestone 3</strong> waits until milestone 2 is approved
-              </span>
-            </li>
-          </ul>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Link href="/explore" className="btn btn-primary btn-lg">
+            Explore initiatives
+          </Link>
+          <Link href="/create" className="btn btn-lg border-base-300 bg-base-100">
+            Start one
+          </Link>
         </div>
+        <p className="mx-auto max-w-xl text-xs opacity-60">
+          Unaudited software. Reviewers are people, and a dishonest majority can release money for work that was not
+          done.
+        </p>
       </section>
 
-      <section className="surface grid grid-cols-2 divide-x divide-y divide-base-300 text-center sm:grid-cols-4 sm:divide-y-0">
-        {[
-          { v: listings.length.toString(), l: "initiatives" },
-          { v: `${fmtAmount(raised, 0)}`, l: `${TOKEN_SYMBOL} pooled` },
-          { v: `${fmtAmount(paid, 0)}`, l: `${TOKEN_SYMBOL} paid for approved work` },
-          { v: backers.toString(), l: "backers across all initiatives" },
-        ].map(s => (
-          <div key={s.l} className="p-5">
-            <div className="text-2xl font-semibold tabular sm:text-3xl">{s.v}</div>
-            <div className="mt-1 text-sm opacity-60">{s.l}</div>
+      <section className="glass space-y-6 p-5 sm:p-6" aria-label="Initiatives by stage">
+        <div className="flex h-3 w-full gap-1 overflow-hidden rounded-full" aria-hidden="true">
+          {listings.length === 0 ? (
+            <div className="h-full w-full rounded-full bg-base-300" />
+          ) : (
+            stages
+              .filter(st => st.n > 0)
+              .map(st => (
+                <div
+                  key={st.label}
+                  className={`h-full rounded-full ${st.tone}`}
+                  style={{ flexGrow: st.n, flexBasis: 0 }}
+                />
+              ))
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {stages.map(st => (
+            <div key={st.label}>
+              <div className="flex items-center gap-2 text-sm opacity-70">
+                <span className={`h-2.5 w-2.5 rounded-full ${st.tone}`} />
+                {st.label}
+              </div>
+              <div className="text-3xl font-semibold tabular">{st.n}</div>
+            </div>
+          ))}
+        </div>
+        <dl className="grid gap-x-8 gap-y-2 border-t border-base-300 pt-4 text-sm sm:grid-cols-3">
+          <div className="flex justify-between gap-4 sm:block">
+            <dt className="opacity-60">Paid for approved work</dt>
+            <dd className="font-semibold tabular">
+              {fmtAmount(paid, 0)} {TOKEN_SYMBOL}
+            </dd>
           </div>
-        ))}
+          <div className="flex justify-between gap-4 sm:block">
+            <dt className="opacity-60">Refunded to backers</dt>
+            <dd className="font-semibold tabular">
+              {fmtAmount(refunded, 0)} {TOKEN_SYMBOL}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-4 sm:block">
+            <dt className="opacity-60">Committee members</dt>
+            <dd className="font-semibold tabular">
+              {new Set(listings.flatMap(l => l.reviewers.map(r => r.toLowerCase()))).size}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold">The people behind it</h2>
+        <PeopleStrip backers={leaders} reviewers={reviewerBoard} />
       </section>
 
       {closingSoon.length > 0 && (
@@ -231,6 +280,51 @@ const Home: NextPage = () => {
               </span>
             </Link>
           ))}
+        </div>
+      </section>
+
+      <section className="grid items-center gap-8 lg:grid-cols-2">
+        <div className="space-y-3">
+          <h2 className="text-2xl font-semibold">See how a pool pays out</h2>
+          <p className="max-w-md opacity-80">
+            Each segment of the bar is one milestone. It fills as people contribute, then turns green as the committee
+            approves the work, one milestone at a time.
+          </p>
+        </div>
+        <div className="glass space-y-5 p-6" aria-label="Example of how a pool pays out">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium">Example: community workshop series</span>
+            <span className="opacity-60">Sample</span>
+          </div>
+          <FundingBar
+            raised={8_000_000_000n}
+            goal={10_000_000_000n}
+            qualifyBps={5000}
+            plan={SAMPLE_PLAN}
+            status="Active"
+            currentMilestone={1}
+            phase="UnderReview"
+          />
+          <ul className="space-y-3 text-sm">
+            <li className="flex items-center gap-3">
+              <span className="h-2.5 w-8 shrink-0 rounded-full bg-success" />
+              <span>
+                <strong>Milestone 1</strong> approved, 3,000 {TOKEN_SYMBOL} paid
+              </span>
+            </li>
+            <li className="flex items-center gap-3">
+              <span className="h-2.5 w-8 shrink-0 rounded-full bg-warning" />
+              <span>
+                <strong>Milestone 2</strong> under review, 2 of 3 approvals needed
+              </span>
+            </li>
+            <li className="flex items-center gap-3">
+              <span className="h-2.5 w-8 shrink-0 rounded-full bg-success/20" />
+              <span>
+                <strong>Milestone 3</strong> waits until milestone 2 is approved
+              </span>
+            </li>
+          </ul>
         </div>
       </section>
 
