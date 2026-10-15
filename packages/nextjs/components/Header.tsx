@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { hardhat } from "viem/chains";
@@ -13,42 +12,43 @@ type HeaderMenuLink = {
   label: string;
   href: string;
   icon?: React.ReactNode;
+  localOnly?: boolean;
 };
 
 export const menuLinks: HeaderMenuLink[] = [
-  {
-    label: "Home",
-    href: "/",
-  },
-  {
-    label: "Debug Contracts",
-    href: "/debug",
-    icon: <BugAntIcon className="h-4 w-4" />,
-  },
+  { label: "Explore", href: "/explore" },
+  { label: "Create", href: "/create" },
+  { label: "My activity", href: "/activity" },
+  { label: "Terms & Risks", href: "/terms" },
+  { label: "Debug", href: "/debug", icon: <BugAntIcon className="h-4 w-4" />, localOnly: true },
 ];
 
 export const HeaderMenuLinks = () => {
   const pathname = usePathname();
+  const { targetNetwork } = useTargetNetwork();
+  const isLocalNetwork = targetNetwork.id === hardhat.id;
 
   return (
     <>
-      {menuLinks.map(({ label, href, icon }) => {
-        const isActive = pathname === href;
-        return (
-          <li key={href} className="h-full">
-            <Link
-              href={href}
-              passHref
-              className={`${
-                isActive ? "bg-base-300" : ""
-              } hover:bg-base-300 focus:!bg-base-300 h-full px-4 text-sm gap-2 flex items-center whitespace-nowrap`}
-            >
-              {icon}
-              <span>{label}</span>
-            </Link>
-          </li>
-        );
-      })}
+      {menuLinks
+        .filter(l => !l.localOnly || isLocalNetwork)
+        .map(({ label, href, icon }) => {
+          const isActive = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <li key={href} className="h-full">
+              <Link
+                href={href}
+                passHref
+                className={`${
+                  isActive ? "bg-base-300" : ""
+                } hover:bg-base-300 focus:!bg-base-300 h-full px-4 text-sm gap-2 flex items-center whitespace-nowrap`}
+              >
+                {icon}
+                <span>{label}</span>
+              </Link>
+            </li>
+          );
+        })}
     </>
   );
 };
@@ -81,14 +81,8 @@ export const Header = () => {
             <HeaderMenuLinks />
           </ul>
         </details>
-        <Link href="/" passHref className="hidden lg:flex items-center gap-2 ml-4 mr-6 shrink-0">
-          <div className="flex relative w-10 h-10">
-            <Image alt="SE2 logo" className="cursor-pointer" fill src="/logo.svg" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-bold leading-tight">Scaffold-ETH</span>
-            <span className="text-xs">Ethereum dev stack</span>
-          </div>
+        <Link href="/" passHref className="flex items-center gap-2 ml-3 mr-6 shrink-0">
+          <span className="font-bold text-lg tracking-tight">Milestone Pools</span>
         </Link>
         <ul className="hidden lg:flex lg:flex-nowrap h-full m-0 p-0 list-none">
           <HeaderMenuLinks />

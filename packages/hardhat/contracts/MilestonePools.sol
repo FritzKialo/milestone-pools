@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title MilestonePools
 /// @notice Pooled, milestone-gated funding for public-goods work, with a fixed review committee
@@ -138,9 +138,7 @@ contract MilestonePools is ReentrancyGuard {
         uint8 threshold,
         uint8 category
     );
-    event InitiativeDetails(
-        uint256 indexed id, uint256[] milestoneAmounts, address[] reviewers, string metadataURI
-    );
+    event InitiativeDetails(uint256 indexed id, uint256[] milestoneAmounts, address[] reviewers, string metadataURI);
     event Contributed(uint256 indexed id, address indexed funder, uint256 amount, uint256 raised);
     event FundingSettled(uint256 indexed id, bool proceeded, uint256 raised);
     event GranteeApplied(uint256 indexed id, address indexed candidate, string pitchURI);
@@ -258,7 +256,15 @@ contract MilestonePools is ReentrancyGuard {
         // status defaults to Funding, phase to AwaitingSubmission
 
         emit InitiativeCreated(
-            id, msg.sender, p.token, p.grantee, goal, p.qualifyBps, ini.fundingDeadline, p.threshold, p.category
+            id,
+            msg.sender,
+            p.token,
+            p.grantee,
+            goal,
+            p.qualifyBps,
+            ini.fundingDeadline,
+            p.threshold,
+            p.category
         );
         emit InitiativeDetails(id, p.milestoneAmounts, p.reviewers, p.metadataURI);
     }
