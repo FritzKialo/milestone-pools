@@ -1,4 +1,4 @@
-﻿import "@rainbow-me/rainbowkit/styles.css";
+import "@rainbow-me/rainbowkit/styles.css";
 import "@scaffold-ui/components/styles.css";
 import { ScaffoldEthAppWithProviders } from "~~/components/ScaffoldEthAppWithProviders";
 import { ThemeProvider } from "~~/components/ThemeProvider";
@@ -7,7 +7,7 @@ import { getMetadata } from "~~/utils/scaffold-eth/getMetadata";
 
 export const metadata = getMetadata({
   title: "Milestone Pools",
-  description: "Built with ðŸ— Scaffold-ETH 2",
+  description: "Pooled funding that pays out milestone by milestone, approved by a fixed review committee.",
 });
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
