@@ -26,6 +26,9 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
           <Link href="/" className="btn border-base-300 bg-base-100">
             Back to home
           </Link>
+          <Link href="/support" className="btn btn-ghost">
+            Get help
+          </Link>
         </div>
       </div>
     </div>

@@ -27,7 +27,10 @@ const COLUMNS = [
   },
   {
     title: "Read first",
-    links: [{ label: "Terms & Risks", href: "/terms" }],
+    links: [
+      { label: "Terms & Risks", href: "/terms" },
+      { label: "Support", href: "/support" },
+    ],
   },
 ];
 
