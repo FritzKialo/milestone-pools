@@ -91,21 +91,24 @@ export type FeedItem = {
 };
 
 /** The latest events, newest first, with their block times. */
-export function useFeed(limit = 12, kinds?: FeedKind[]) {
+export function useFeed(limit = 12, kinds?: FeedKind[], address?: string) {
   const { data: events, isLoading } = usePoolEvents();
   const title = useTitleMap();
   const kindKey = kinds?.join(",") ?? "";
+  const who = address?.toLowerCase();
 
   const picked = useMemo(() => {
     const allowed = kindKey ? kindKey.split(",") : null;
     return (events ?? [])
       .filter(e => {
         const k = KIND[e.eventName];
-        return !!k && (!allowed || allowed.includes(k));
+        if (!k || (allowed && !allowed.includes(k))) return false;
+        if (!who) return true;
+        return Object.values(e.args ?? {}).some(v => typeof v === "string" && v.toLowerCase() === who);
       })
       .slice(-limit)
       .reverse();
-  }, [events, limit, kindKey]);
+  }, [events, limit, kindKey, who]);
 
   const { data: times } = useBlockTimes(useMemo(() => picked.map(e => e.blockNumber), [picked]));
 

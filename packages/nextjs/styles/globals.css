@@ -296,6 +296,10 @@ details > summary::-webkit-details-marker {
     0 10px 34px -8px rgb(240 182 74 / 0.6);
 }
 
+.btn-glow:disabled {
+  box-shadow: none;
+}
+
 .btn-glow::after {
   content: "";
   position: absolute;
