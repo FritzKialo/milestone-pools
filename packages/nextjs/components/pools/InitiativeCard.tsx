@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CompareCheck, type CompareProps } from "~~/components/pools/CompareCheck";
 import { Cover } from "~~/components/pools/Cover";
 import { FundingBar } from "~~/components/pools/FundingBar";
 import { SaveButton } from "~~/components/pools/SaveButton";
@@ -16,7 +17,7 @@ import {
   useNow,
 } from "~~/lib/pools";
 
-export const InitiativeCard = ({ item }: { item: Listing }) => {
+export const InitiativeCard = ({ item, compare }: { item: Listing; compare?: CompareProps }) => {
   const meta = useMetadata(item.metadataURI, item.id);
   const now = useNow(30_000);
   const qualified = isQualified(item);
@@ -69,6 +70,7 @@ export const InitiativeCard = ({ item }: { item: Listing }) => {
         </div>
       </Link>
       <SaveButton id={item.id} className="absolute right-3 top-3" />
+      {compare && <CompareCheck compare={compare} label={meta.title} className="absolute left-3 top-3 z-10" />}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CompareCheck, type CompareProps } from "~~/components/pools/CompareCheck";
 import { FundingBar } from "~~/components/pools/FundingBar";
 import { SaveButton } from "~~/components/pools/SaveButton";
 import { StatusBadge } from "~~/components/pools/StatusBadge";
@@ -16,9 +17,12 @@ import {
 } from "~~/lib/pools";
 
 const COLUMNS =
-  "grid items-center gap-x-4 gap-y-1 px-4 py-3 grid-cols-[auto_minmax(0,1fr)_auto] md:grid-cols-[auto_9rem_minmax(0,2fr)_minmax(0,1.3fr)_4rem_9rem_7rem]";
+  "grid items-center gap-x-4 gap-y-1 px-4 py-3 grid-cols-[auto_minmax(0,1fr)_auto] md:grid-cols-[2.25rem_9rem_minmax(0,2fr)_minmax(0,1.3fr)_4rem_9rem_7rem]";
+const COLUMNS_COMPARE =
+  "grid items-center gap-x-4 gap-y-1 px-4 py-3 grid-cols-[auto_minmax(0,1fr)_auto] md:grid-cols-[9rem_9rem_minmax(0,2fr)_minmax(0,1.3fr)_4rem_9rem_7rem]";
 
-const Row = ({ item }: { item: Listing }) => {
+const Row = ({ item, compare }: { item: Listing; compare?: CompareProps }) => {
+  const cols = compare ? COLUMNS_COMPARE : COLUMNS;
   const meta = useMetadata(item.metadataURI, item.id);
   const now = useNow(30_000);
   const pct = Math.min(progressPct(item.raised, item.goal), 100);
@@ -31,8 +35,11 @@ const Row = ({ item }: { item: Listing }) => {
         : "-";
 
   return (
-    <li className={`${COLUMNS} relative transition-colors hover:bg-base-200/60`}>
-      <SaveButton id={item.id} className="relative z-10" />
+    <li className={`${cols} relative transition-colors hover:bg-base-200/60`}>
+      <div className="relative z-10 flex items-center gap-2">
+        <SaveButton id={item.id} />
+        {compare && <CompareCheck compare={compare} label={meta.title} />}
+      </div>
       <div className="hidden md:block">
         <StatusBadge status={item.status} />
       </div>
@@ -81,13 +88,19 @@ const Row = ({ item }: { item: Listing }) => {
 };
 
 /** A compact list of initiatives. On narrow screens it keeps the title, status and amount. */
-export const InitiativeTable = ({ items }: { items: Listing[] }) => (
+export const InitiativeTable = ({
+  items,
+  compareFor,
+}: {
+  items: Listing[];
+  compareFor?: (id: number) => CompareProps;
+}) => (
   <div className="surface overflow-hidden">
     <div
-      className={`${COLUMNS} hidden border-b border-base-300 bg-base-200/50 py-2 text-xs font-medium opacity-70 md:grid`}
+      className={`${compareFor ? COLUMNS_COMPARE : COLUMNS} hidden border-b border-base-300 bg-base-200/50 py-2 text-xs font-medium opacity-70 md:grid`}
       aria-hidden="true"
     >
-      <span className="w-8" />
+      <span />
       <span>Status</span>
       <span>Initiative</span>
       <span>Funded</span>
@@ -97,7 +110,7 @@ export const InitiativeTable = ({ items }: { items: Listing[] }) => (
     </div>
     <ul className="divide-y divide-base-300">
       {items.map(i => (
-        <Row key={i.id} item={i} />
+        <Row key={i.id} item={i} compare={compareFor?.(i.id)} />
       ))}
     </ul>
   </div>

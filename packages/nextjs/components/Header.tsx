@@ -86,7 +86,7 @@ export const Header = () => {
       <div className="navbar mx-auto max-w-6xl justify-between p-0 px-2 sm:px-4">
         <div className="navbar-start w-auto self-stretch">
           <details className="dropdown" ref={burgerMenuRef}>
-            <summary className="btn btn-ghost lg:hidden hover:bg-transparent">
+            <summary className="btn btn-ghost lg:hidden hover:bg-transparent" aria-label="Open menu">
               <Bars3Icon className="h-6 w-6" />
             </summary>
             <ul

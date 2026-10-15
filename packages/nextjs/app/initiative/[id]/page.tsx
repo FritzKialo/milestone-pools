@@ -8,6 +8,7 @@ import { ArrowUpRightIcon } from "@heroicons/react/24/outline";
 import { ActionsPanel } from "~~/components/pools/ActionsPanel";
 import { ActivityLog } from "~~/components/pools/ActivityLog";
 import { AddressLine } from "~~/components/pools/AddressLine";
+import { CalendarButton } from "~~/components/pools/CalendarButton";
 import { StepChart } from "~~/components/pools/Charts";
 import { ContractLink } from "~~/components/pools/ContractLink";
 import { ContributeBox } from "~~/components/pools/ContributeBox";
@@ -16,12 +17,15 @@ import { FaqList } from "~~/components/pools/FaqList";
 import { FundingBar } from "~~/components/pools/FundingBar";
 import { Hint } from "~~/components/pools/Hint";
 import { MilestoneTimeline } from "~~/components/pools/MilestoneTimeline";
+import { PayoutSimulator } from "~~/components/pools/PayoutSimulator";
 import { RfpPanel } from "~~/components/pools/RfpPanel";
+import { RiskPanel } from "~~/components/pools/RiskPanel";
 import { SaveButton } from "~~/components/pools/SaveButton";
 import { ShareButton } from "~~/components/pools/ShareButton";
 import { StatusBadge } from "~~/components/pools/StatusBadge";
 import { TopBackers } from "~~/components/pools/TopBackers";
 import { useDeployedContractInfo, useScaffoldReadContract } from "~~/hooks/scaffold-eth";
+import { buildChecks, describeRecord, reviewerRecords } from "~~/lib/analysis";
 import {
   CATEGORIES,
   REVIEW_PERIOD,
@@ -78,6 +82,7 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
   const mine = useMemo(() => allContributions.filter(c => c.id === idNum), [allContributions, idNum]);
   const series = useMemo(() => cumulative(mine), [mine]);
   const backers = useMemo(() => topBackers(mine, 5), [mine]);
+  const records = useMemo(() => reviewerRecords(events), [events]);
 
   // Review progress per committee member for the open review.
   const { data: votes } = useReadContracts({
@@ -112,10 +117,14 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
   const qualified = isQualified(item);
   const isOpen = item.status === "Funding" && now <= item.fundingDeadline;
 
+  const topSharePct = item.raised > 0n && backers[0] ? Number((backers[0].total * 1000n) / item.raised) / 10 : null;
+  const checks = buildChecks({ item, plan: planArr, reviewers, topSharePct, now });
+
   const nav = [
     { href: "#about", label: "About", show: true },
     { href: "#milestones", label: "Milestones", show: true },
     { href: "#committee", label: "Committee", show: true },
+    { href: "#checks", label: "Before you contribute", show: true },
     { href: "#backers", label: "Backers", show: true },
     { href: "#faq", label: "Questions", show: !!meta.faq },
     { href: "#activity", label: "Activity", show: true },
@@ -138,6 +147,7 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
           <div className="flex flex-wrap items-start justify-between gap-4">
             <h1 className="max-w-3xl text-3xl font-bold leading-tight">{meta.title}</h1>
             <div className="flex gap-2">
+              <CalendarButton item={item} title={meta.title} now={now} />
               <SaveButton id={idNum} label />
               <ShareButton />
             </div>
@@ -233,7 +243,10 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
                 const voted = underReview && votes?.[k]?.status === "success" && votes[k].result === true;
                 return (
                   <li key={r} className="flex items-center justify-between gap-3 p-3">
-                    <AddressLine address={r} />
+                    <div className="min-w-0 space-y-0.5">
+                      <AddressLine address={r} />
+                      <p className="pl-8 text-xs opacity-60">{describeRecord(records.get(r.toLowerCase()))}</p>
+                    </div>
                     <div className="flex items-center gap-3">
                       <Link href={`/profile/${r}`} className="link text-sm opacity-70">
                         Profile
@@ -254,6 +267,11 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
                 in the activity log below.
               </p>
             )}
+          </section>
+
+          <section id="checks" className="scroll-mt-24 space-y-3">
+            <h2 className="text-xl font-semibold">Before you contribute</h2>
+            <RiskPanel checks={checks} />
           </section>
 
           <section id="backers" className="scroll-mt-24 space-y-6">
@@ -324,6 +342,7 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
               )}
             </dl>
             {isOpen && <ContributeBox item={item} />}
+            {isOpen && <PayoutSimulator item={item} plan={planArr} />}
             {!isOpen && item.status === "Funding" && (
               <p className="text-sm opacity-70">
                 The funding period has ended. Anyone can close it, which decides whether this goes ahead.

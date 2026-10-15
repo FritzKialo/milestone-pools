@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { NextPage } from "next";
 import { useAccount } from "wagmi";
-import { ArrowDownTrayIcon, LinkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { ArrowDownTrayIcon, ArrowsRightLeftIcon, LinkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { InitiativeCard } from "~~/components/pools/InitiativeCard";
 import { InitiativeTable } from "~~/components/pools/InitiativeTable";
 import { CardGridSkeleton } from "~~/components/pools/Skeletons";
@@ -86,6 +86,8 @@ const ExploreInner = () => {
   const [onlyCalls, setOnlyCalls] = useState(params.get("call") === "1");
   const [onlyMine, setOnlyMine] = useState(params.get("mine") === "1");
   const { address } = useAccount();
+  const [compareOn, setCompareOn] = useState(false);
+  const [picked, setPicked] = useState<number[]>([]);
 
   // Titles live in metadata, so search needs them loaded. Cached per URI by react-query.
   const { data: titles } = useQuery({
@@ -176,6 +178,13 @@ const ExploreInner = () => {
     const qs = p.toString();
     window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
   }, [query, category, status, size, sort, onlyQualified, onlySaved, onlyCalls, onlyMine]);
+
+  const MAX_COMPARE = 3;
+  const compareFor = (id: number) => ({
+    selected: picked.includes(id),
+    disabled: picked.length >= MAX_COMPARE,
+    onToggle: () => setPicked(cur => (cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id])),
+  });
 
   const copyLink = async () => {
     try {
@@ -371,6 +380,17 @@ const ExploreInner = () => {
               {shown.length} {shown.length === 1 ? "initiative" : "initiatives"}
             </p>
             <div className="flex gap-2">
+              <button
+                className={`btn btn-sm ${compareOn ? "btn-primary" : "border-base-300 bg-base-100"}`}
+                aria-pressed={compareOn}
+                onClick={() => {
+                  setCompareOn(v => !v);
+                  setPicked([]);
+                }}
+              >
+                <ArrowsRightLeftIcon className="h-4 w-4" />
+                Compare
+              </button>
               <button className="btn btn-sm border-base-300 bg-base-100" onClick={copyLink}>
                 <LinkIcon className="h-4 w-4" />
                 Copy link
@@ -382,15 +402,45 @@ const ExploreInner = () => {
             </div>
           </div>
           {view === "table" ? (
-            <InitiativeTable items={shown} />
+            <InitiativeTable items={shown} compareFor={compareOn ? compareFor : undefined} />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {shown.map(l => (
-                <InitiativeCard key={l.id} item={l} />
+                <InitiativeCard key={l.id} item={l} compare={compareOn ? compareFor(l.id) : undefined} />
               ))}
             </div>
           )}
         </>
+      )}
+
+      {compareOn && (
+        <div
+          className="glass fixed inset-x-3 bottom-4 z-30 mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3 px-4 py-3 shadow-xl"
+          role="region"
+          aria-label="Compare initiatives"
+        >
+          <p className="text-sm">
+            {picked.length === 0
+              ? "Tick two or three initiatives to compare them side by side."
+              : `${picked.length} of ${MAX_COMPARE} selected`}
+          </p>
+          <div className="flex gap-2">
+            {picked.length > 0 && (
+              <button className="btn btn-sm btn-ghost" onClick={() => setPicked([])}>
+                Clear
+              </button>
+            )}
+            {picked.length >= 2 ? (
+              <Link href={`/compare?ids=${picked.join(",")}`} className="btn btn-sm btn-primary">
+                Compare {picked.length}
+              </Link>
+            ) : (
+              <button className="btn btn-sm btn-primary" disabled>
+                Compare
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
