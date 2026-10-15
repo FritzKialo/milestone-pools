@@ -60,14 +60,22 @@
   html {
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
   }
 
   body {
     min-height: 100vh;
     overflow-x: clip;
     font-family: var(--font-sans);
-    background: var(--color-base-200);
+    background:
+      radial-gradient(60rem 26rem at 10% -8rem, rgb(15 138 95 / 0.09), transparent 70%),
+      radial-gradient(50rem 22rem at 94% -6rem, rgb(43 108 176 / 0.07), transparent 70%), var(--color-base-200);
+    background-repeat: no-repeat;
     color: var(--color-base-content);
+  }
+
+  ::selection {
+    background: rgb(15 138 95 / 0.22);
   }
 
   p {
@@ -97,6 +105,23 @@
 .btn {
   box-shadow: none;
   font-weight: 600;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+a,
+button,
+summary {
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .link {
@@ -111,6 +136,37 @@
   background: var(--color-base-100);
   border: 1px solid var(--color-base-300);
   border-radius: var(--radius-box);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+
+.card-link:hover {
+  border-color: color-mix(in oklab, var(--color-base-content) 35%, transparent);
+  box-shadow: 0 10px 28px -14px rgb(18 32 47 / 0.28);
+  transform: translateY(-2px);
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.page-enter {
+  animation: page-in 0.4s ease-out backwards;
+}
+
+details[open] > :not(summary) {
+  animation: fade-in 0.25s ease-out;
 }
 
 .prose-block {

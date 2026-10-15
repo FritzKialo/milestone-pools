@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { NextPage } from "next";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { InitiativeCard } from "~~/components/pools/InitiativeCard";
+import { CardGridSkeleton } from "~~/components/pools/Skeletons";
 import { useWatchlist } from "~~/lib/local";
 import { CATEGORIES, type Listing, isClosedBad, isQualified, loadMetadata, useListings } from "~~/lib/pools";
 
@@ -196,9 +197,7 @@ const ExploreInner = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-20">
-          <span className="loading loading-spinner loading-lg" />
-        </div>
+        <CardGridSkeleton />
       ) : shown.length === 0 ? (
         <div className="surface border-dashed p-12 text-center">
           <p className="font-medium">

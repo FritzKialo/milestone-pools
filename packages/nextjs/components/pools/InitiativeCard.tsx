@@ -22,7 +22,7 @@ export const InitiativeCard = ({ item }: { item: Listing }) => {
   const qualified = isQualified(item);
 
   return (
-    <div className="surface relative flex flex-col overflow-hidden transition-colors hover:border-base-content/40">
+    <div className="surface card-link relative flex flex-col overflow-hidden">
       <Link href={`/initiative/${item.id}`} className="flex flex-1 flex-col">
         <Cover image={meta.image} category={item.category} />
         <div className="flex flex-1 flex-col gap-3 p-5">

@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { type StatusName, TOKEN_SYMBOL, fmtAmount, progressPct } from "~~/lib/pools";
 
 type Props = {
@@ -29,6 +32,12 @@ export const FundingBar = ({
   currentMilestone = 0,
   phase,
 }: Props) => {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const r = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(r);
+  }, []);
+
   const pct = Math.min(progressPct(raised, goal), 100);
   const mark = qualifyBps / 100;
   const qualified = raised * 10_000n >= goal * BigInt(qualifyBps);
@@ -79,7 +88,10 @@ export const FundingBar = ({
               className="relative h-full overflow-hidden rounded-full bg-base-300"
               style={{ flexGrow: s.weight, flexBasis: 0 }}
             >
-              <div className={`h-full ${s.tone}`} style={{ width: `${s.fill * 100}%` }} />
+              <div
+                className={`h-full transition-[width] duration-700 ease-out ${s.tone}`}
+                style={{ width: `${ready ? s.fill * 100 : 0}%` }}
+              />
             </div>
           ))}
         </div>
