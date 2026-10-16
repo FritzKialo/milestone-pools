@@ -177,7 +177,7 @@ const Home: NextPage = () => {
           </div>
 
           <div className="glass tile space-y-1 p-5 text-center sm:p-7">
-            <p className="text-sm opacity-70">Pooled so far, held by the contract</p>
+            <p className="text-sm opacity-70">Raised so far</p>
             <div
               className="flex flex-wrap items-baseline justify-center gap-x-3"
               aria-label={`${fmtAmount(pooled, 0)} ${TOKEN_SYMBOL}`}
