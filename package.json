@@ -51,7 +51,8 @@
     "verify": "yarn hardhat:verify"
   },
   "resolutions": {
-    "@coinbase/cdp-sdk": "1.52.0"
+    "@coinbase/cdp-sdk": "1.52.0",
+    "@wagmi/connectors": "6.2.0"
   },
   "devDependencies": {
     "husky": "~9.1.6",

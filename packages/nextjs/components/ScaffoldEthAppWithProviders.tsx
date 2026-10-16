@@ -1,6 +1,5 @@
 "use client";
 
-import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { Toaster } from "react-hot-toast";
@@ -8,7 +7,7 @@ import { WagmiProvider } from "wagmi";
 import { Footer } from "~~/components/Footer";
 import { Header } from "~~/components/Header";
 import { LiveNotifier } from "~~/components/LiveNotifier";
-import { BlockieAvatar } from "~~/components/scaffold-eth";
+import "~~/services/web3/appkit";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
@@ -39,13 +38,8 @@ export const ScaffoldEthAppWithProviders = ({ children }: { children: React.Reac
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider
-          avatar={BlockieAvatar}
-          theme={darkTheme({ accentColor: "#f0b64a", accentColorForeground: "#1a1305", borderRadius: "medium" })}
-        >
-          <ProgressBar height="3px" color="#f0b64a" />
-          <ScaffoldEthApp>{children}</ScaffoldEthApp>
-        </RainbowKitProvider>
+        <ProgressBar height="3px" color="#f0b64a" />
+        <ScaffoldEthApp>{children}</ScaffoldEthApp>
       </QueryClientProvider>
     </WagmiProvider>
   );
