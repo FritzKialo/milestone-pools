@@ -17,6 +17,8 @@ async function fixture() {
   const pools = await ethers.deployContract("MilestonePools", [
     [await token.getAddress(), await feeToken.getAddress(), await reToken.getAddress()],
     [usdc(1), 1n, 1n],
+    [10n ** 30n, 10n ** 30n, 10n ** 30n],
+    [10n ** 31n, 10n ** 31n, 10n ** 31n],
   ]);
   const poolsAddr = await pools.getAddress();
 
@@ -106,7 +108,9 @@ describe("MilestonePools", function () {
     it("rejects bad constructor input", async function () {
       const { token } = await loadFixture(fixture);
       const t = await token.getAddress();
-      const deploy = (a: string[], m: bigint[]) => ethers.deployContract("MilestonePools", [a, m]);
+      const big = 10n ** 30n;
+      const deploy = (a: string[], m: bigint[], g: bigint[] = m.map(() => big), c: bigint[] = m.map(() => big * 10n)) =>
+        ethers.deployContract("MilestonePools", [a, m, g, c]);
       const probe = await ethers.getContractFactory("MilestonePools");
 
       await expect(deploy([], [])).to.be.revertedWithCustomError(probe, "NoTokens");
@@ -116,6 +120,19 @@ describe("MilestonePools", function () {
       await expect(deploy([ZERO], [1n])).to.be.revertedWithCustomError(probe, "InvalidToken");
       const [eoa] = await ethers.getSigners();
       await expect(deploy([eoa.address], [1n])).to.be.revertedWithCustomError(probe, "InvalidToken");
+      // limits must line up with the tokens, goal limit >= minimum, total cap >= goal limit
+      await expect(deploy([t], [1n], [big, big])).to.be.revertedWithCustomError(probe, "LengthMismatch");
+      await expect(deploy([t], [1n], [big], [])).to.be.revertedWithCustomError(probe, "LengthMismatch");
+      await expect(deploy([t], [10n], [9n], [big])).to.be.revertedWithCustomError(probe, "InvalidLimit");
+      await expect(deploy([t], [1n], [100n], [99n])).to.be.revertedWithCustomError(probe, "InvalidLimit");
+      await deploy([t], [10n], [10n], [10n]); // equal limits are fine
+    });
+
+    it("stores the goal limit and total cap per token", async function () {
+      const { pools, token, feeToken } = await loadFixture(fixture);
+      expect(await pools.maxGoal(await token.getAddress())).to.equal(10n ** 30n);
+      expect(await pools.totalCap(await feeToken.getAddress())).to.equal(10n ** 31n);
+      expect(await pools.maxGoal(ZERO)).to.equal(0n);
     });
 
     it("rejects more than MAX_TOKENS tokens", async function () {
@@ -125,11 +142,16 @@ describe("MilestonePools", function () {
         const t = await ethers.deployContract("MockERC20", ["T", "T", 18]);
         addrs.push(await t.getAddress());
       }
-      await expect(ethers.deployContract("MilestonePools", [addrs, addrs.map(() => 1n)])).to.be.revertedWithCustomError(
+      const lim = (n: number) => [
+        addrs.slice(0, n).map(() => 1n),
+        addrs.slice(0, n).map(() => 10n),
+        addrs.slice(0, n).map(() => 10n),
+      ];
+      await expect(ethers.deployContract("MilestonePools", [addrs, ...lim(21)])).to.be.revertedWithCustomError(
         probe,
         "TooManyTokens",
       );
-      await ethers.deployContract("MilestonePools", [addrs.slice(0, 20), addrs.slice(0, 20).map(() => 1n)]);
+      await ethers.deployContract("MilestonePools", [addrs.slice(0, 20), ...lim(20)]);
     });
   });
 
@@ -303,6 +325,61 @@ describe("MilestonePools", function () {
       const amounts: bigint[] = await pools.getMilestoneAmounts(id);
       expect(amounts.every(a => a > 0n)).to.equal(true);
       expect(amounts.reduce((a, b) => a + b, 0n)).to.equal(10_000_001n);
+    });
+
+    describe("beta limits", function () {
+      async function limited() {
+        const base = await loadFixture(fixture);
+        const { alice, bob, grantee, reviewers } = base;
+        // goal limit 500 USDC, total cap 600 USDC
+        const t = await ethers.deployContract("MockERC20", ["USD Coin", "USDC", 6]);
+        const tAddr = await t.getAddress();
+        const p = await ethers.deployContract("MilestonePools", [[tAddr], [usdc(1)], [usdc(500)], [usdc(600)]]);
+        for (const f of [alice, bob]) {
+          await t.mint(f.address, usdc(10_000));
+          await t.connect(f).approve(await p.getAddress(), ethers.MaxUint256);
+        }
+        const make = (goal: bigint) =>
+          p.connect(alice).createInitiative({
+            token: tAddr,
+            grantee: grantee.address,
+            milestoneAmounts: [goal],
+            qualifyBps: 2500,
+            fundingDuration: 30 * DAY,
+            reviewers: reviewers.slice(0, 3).map(r => r.address),
+            threshold: 2,
+            category: 1,
+            metadataURI: "ipfs://x",
+          });
+        return { ...base, t, tAddr, p, make };
+      }
+
+      it("rejects a goal above the per-initiative limit and accepts exactly the limit", async function () {
+        const { p, make } = await limited();
+        await expect(make(usdc(500) + 1n)).to.be.revertedWithCustomError(p, "GoalTooLarge");
+        await make(usdc(500));
+        expect(await p.initiativeCount()).to.equal(1n);
+      });
+
+      it("stops contributions that push total holdings over the cap, and frees room after a payout", async function () {
+        const { p, tAddr, make, alice, bob, grantee, reviewers } = await limited();
+        await make(usdc(500));
+        await make(usdc(500));
+        await p.connect(alice).contribute(1, usdc(500)); // holdings 500, initiative 1 is Active
+        await expect(p.connect(bob).contribute(2, usdc(101))).to.be.revertedWithCustomError(p, "CapReached");
+        await p.connect(bob).contribute(2, usdc(100)); // holdings exactly 600
+        await expect(p.connect(bob).contribute(2, usdc(1))).to.be.revertedWithCustomError(p, "CapReached");
+
+        // pay out initiative 1 and let the grantee withdraw: holdings fall to 100
+        await p.connect(grantee).submitMilestone(1, "ipfs://evidence");
+        await p.connect(reviewers[0]).voteMilestone(1, true);
+        await p.connect(reviewers[1]).voteMilestone(1, true);
+        await p.connect(grantee).withdraw(tAddr);
+        expect(await p.liabilities(tAddr)).to.equal(usdc(100));
+
+        await p.connect(bob).contribute(2, usdc(101)); // room again
+        expect(await p.liabilities(tAddr)).to.equal(usdc(201));
+      });
     });
 
     it("closes exactly one second after the deadline", async function () {

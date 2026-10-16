@@ -17,7 +17,10 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 ///      Funders should read the committee before contributing.
 ///
 ///      Design rules:
-///        - No owner, no admin, no pause, no upgrade. The token allowlist is fixed at deployment.
+///        - No owner, no admin, no pause, no upgrade. The token allowlist and the limits below are
+///          fixed at deployment. Raising a limit means deploying a new version.
+///        - Per-token safety limits: a cap on any single initiative's goal and a cap on the total
+///          this contract may hold at once. They bound how much a bug or a bad actor can put at risk.
 ///        - Pull payments only. Approved milestones credit the grantee; the grantee withdraws.
 ///        - Per-initiative accounting plus a global per-token `liabilities` counter, so the
 ///          token balance of this contract is always >= what it owes (see {liabilities}).
@@ -105,6 +108,12 @@ contract MilestonePools is ReentrancyGuard {
     /// @notice Smallest contribution per token. Zero means the token is not allowed.
     mapping(address token => uint256 amount) public minContribution;
 
+    /// @notice Largest funding goal a single initiative may set in `token`.
+    mapping(address token => uint256 amount) public maxGoal;
+
+    /// @notice Most this contract may owe in `token` at any one time (see {liabilities}).
+    mapping(address token => uint256 amount) public totalCap;
+
     /// @notice Everything this contract owes in `token`: pooled funds, credits, unclaimed refunds.
     ///         The token balance of the contract is always >= this number.
     mapping(address token => uint256 amount) public liabilities;
@@ -164,6 +173,9 @@ contract MilestonePools is ReentrancyGuard {
     error InvalidToken();
     error DuplicateToken();
     error InvalidMinimum();
+    error InvalidLimit();
+    error GoalTooLarge();
+    error CapReached();
     error TokenNotAllowed();
     error InvalidMilestones();
     error InvalidQualifyBps();
@@ -194,17 +206,27 @@ contract MilestonePools is ReentrancyGuard {
 
     /// @param tokens ERC-20 tokens initiatives may raise in. Fixed forever.
     /// @param minimums Smallest accepted contribution for each token, in token units.
-    constructor(address[] memory tokens, uint256[] memory minimums) {
+    /// @param maxGoals Largest funding goal one initiative may set for each token.
+    /// @param totalCaps Most the contract may hold at once for each token. At least the matching goal limit.
+    constructor(
+        address[] memory tokens,
+        uint256[] memory minimums,
+        uint256[] memory maxGoals,
+        uint256[] memory totalCaps
+    ) {
         uint256 n = tokens.length;
         if (n == 0) revert NoTokens();
         if (n > MAX_TOKENS) revert TooManyTokens();
-        if (n != minimums.length) revert LengthMismatch();
+        if (n != minimums.length || n != maxGoals.length || n != totalCaps.length) revert LengthMismatch();
         for (uint256 i; i < n; ++i) {
             address t = tokens[i];
             if (t == address(0) || t.code.length == 0) revert InvalidToken();
             if (minimums[i] == 0) revert InvalidMinimum();
+            if (maxGoals[i] < minimums[i] || totalCaps[i] < maxGoals[i]) revert InvalidLimit();
             if (minContribution[t] != 0) revert DuplicateToken();
             minContribution[t] = minimums[i];
+            maxGoal[t] = maxGoals[i];
+            totalCap[t] = totalCaps[i];
         }
     }
 
@@ -231,6 +253,7 @@ contract MilestonePools is ReentrancyGuard {
             if (a == 0 || a * p.qualifyBps < BPS) revert InvalidMilestones();
             goal += a;
         }
+        if (goal > maxGoal[p.token]) revert GoalTooLarge();
 
         uint256 rCount = p.reviewers.length;
         if (rCount < MIN_REVIEWERS || rCount > MAX_REVIEWERS) revert InvalidReviewers();
@@ -288,6 +311,7 @@ contract MilestonePools is ReentrancyGuard {
         // smaller than the minimum can never leave an initiative unable to reach its goal.
         if (amount < minContribution[ini.token] && amount != remaining) revert BelowMinimum();
         if (amount > remaining) revert ExceedsGoal();
+        if (liabilities[ini.token] + amount > totalCap[ini.token]) revert CapReached();
 
         // effects
         if (contributions[id][msg.sender] == 0) ++ini.backers;

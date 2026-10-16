@@ -31,7 +31,7 @@ async function runScenario(seed: number, stats: Record<string, number>) {
 
   const token = await ethers.deployContract("MockERC20", ["USD Coin", "USDC", 6]);
   const tokenAddr = await token.getAddress();
-  const pools = await ethers.deployContract("MilestonePools", [[tokenAddr], [1n]]);
+  const pools = await ethers.deployContract("MilestonePools", [[tokenAddr], [1n], [10n ** 30n], [10n ** 30n]]);
   const poolsAddr = await pools.getAddress();
 
   const MINT = usdc(5_000_000);

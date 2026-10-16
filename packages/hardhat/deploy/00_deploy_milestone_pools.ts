@@ -18,8 +18,11 @@ export default deployScript(
     const pools = await env.deploy("MilestonePools", {
       account: deployer,
       artifact: artifacts.MilestonePools,
-      // allowlist: [token], minimum contribution: 1 USDC
-      args: [[usdc.address], [1_000_000n]],
+      // allowlist: [token]; minimum contribution: 1 USDC; largest goal per initiative: 1,000,000 USDC;
+      // most the contract may hold at once: 10,000,000 USDC. These are generous demo limits.
+      // A real beta launch would use small values, for example a 500 USDC goal limit and a
+      // 5,000 USDC total cap, because limits are fixed at deployment.
+      args: [[usdc.address], [1_000_000n], [1_000_000_000_000n], [10_000_000_000_000n]],
     });
 
     console.log("Test USDC:      ", usdc.address);
