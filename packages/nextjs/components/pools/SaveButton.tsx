@@ -5,13 +5,13 @@ import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 import { useWatchlist } from "~~/lib/local";
 
 /** Star an initiative to find it again under "Saved". Stored in this browser only. */
-export const SaveButton = ({ id, className = "", label }: { id: number; className?: string; label?: boolean }) => {
+export const SaveButton = ({ uid, className = "", label }: { uid: string; className?: string; label?: boolean }) => {
   const { isSaved, toggle } = useWatchlist();
-  const saved = isSaved(id);
+  const saved = isSaved(uid);
   return (
     <button
       type="button"
-      onClick={() => toggle(id)}
+      onClick={() => toggle(uid)}
       aria-pressed={saved}
       aria-label={saved ? "Remove from saved" : "Save this initiative"}
       title={saved ? "Saved in this browser. Click to remove." : "Save in this browser"}

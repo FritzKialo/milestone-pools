@@ -1,4 +1,4 @@
-import { getParsedError } from "./getParsedError";
+import { FRIENDLY_ERRORS, getParsedError } from "./getParsedError";
 import { AllowedChainIds } from "./networks";
 import { notification } from "./notification";
 import { MutateOptions } from "@tanstack/react-query";
@@ -354,7 +354,7 @@ export const getParsedErrorWithAllAbis = (error: any, chainId: AllowedChainIds):
 
     try {
       // Get all deployed contracts for the current chain
-      const chainContracts = deployedContractsData[chainId as keyof typeof deployedContractsData];
+      const chainContracts = deployedContractsData[chainId as unknown as keyof typeof deployedContractsData];
 
       if (!chainContracts) {
         return originalParsedError;
@@ -390,6 +390,7 @@ export const getParsedErrorWithAllAbis = (error: any, chainId: AllowedChainIds):
       // Check if we can find the error in our lookup
       const errorInfo = errorLookup[signature];
       if (errorInfo) {
+        if (FRIENDLY_ERRORS[errorInfo.name]) return FRIENDLY_ERRORS[errorInfo.name];
         return `Contract function execution reverted with the following reason:\n${errorInfo.signature} from ${errorInfo.contract} contract`;
       }
 

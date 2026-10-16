@@ -2,20 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { useAccount, useReadContracts } from "wagmi";
-import {
-  useDeployedContractInfo,
-  useScaffoldReadContract,
-  useScaffoldWriteContract,
-  useTargetNetwork,
-} from "~~/hooks/scaffold-eth";
+import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { poolChain } from "~~/lib/chains";
 import { type Initiative, ZERO_ADDRESS, eventsFor, fmtDate, safeLink, shortAddr, usePoolEvents } from "~~/lib/pools";
 
 /** Open call: anyone can offer to do the work; the committee votes on who. */
 export const RfpPanel = ({ item, reviewers }: { item: Initiative; reviewers: `0x${string}`[] }) => {
   const { address } = useAccount();
   const id = BigInt(item.id);
-  const { data: pools } = useDeployedContractInfo({ contractName: "MilestonePools" });
-  const { writeContractAsync } = useScaffoldWriteContract({ contractName: "MilestonePools" });
+  const pools = poolChain(item.chainId)?.pools;
+  const { writeContractAsync } = useScaffoldWriteContract({ contractName: "MilestonePools", chainId: item.chainId });
   const [pitch, setPitch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -23,17 +19,16 @@ export const RfpPanel = ({ item, reviewers }: { item: Initiative; reviewers: `0x
 
   const candidates = useMemo(() => {
     const map = new Map<string, string>();
-    eventsFor(events, "GranteeApplied", item.id).forEach(e =>
+    eventsFor(events, "GranteeApplied", item.uid).forEach(e =>
       map.set((e.args.candidate as string).toLowerCase(), e.args.pitchURI as string),
     );
     return Array.from(map.entries()).map(([addr, uri]) => ({ addr: addr as `0x${string}`, uri }));
-  }, [events, item.id]);
+  }, [events, item.uid]);
 
-  const { targetNetwork } = useTargetNetwork();
   const { data: counts } = useReadContracts({
     contracts: (pools
       ? candidates.map(c => ({
-          chainId: targetNetwork.id,
+          chainId: item.chainId,
           address: pools.address,
           abi: pools.abi,
           functionName: "candidateVotes",
@@ -46,6 +41,7 @@ export const RfpPanel = ({ item, reviewers }: { item: Initiative; reviewers: `0x
   const { data: myChoice } = useScaffoldReadContract({
     contractName: "MilestonePools",
     functionName: "reviewerChoice",
+    chainId: item.chainId,
     args: [id, address],
     watch: true,
   });

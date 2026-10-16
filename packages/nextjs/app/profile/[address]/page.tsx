@@ -6,9 +6,11 @@ import type { NextPage } from "next";
 import { isAddress } from "viem";
 import { useAccount } from "wagmi";
 import { ArrowUpRightIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline";
+import { ChainBadge } from "~~/components/pools/ChainBadge";
 import { StatusBadge } from "~~/components/pools/StatusBadge";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
-import { useCopyToClipboard, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { useCopyToClipboard } from "~~/hooks/scaffold-eth";
+import { POOL_CHAINS, initiativePath } from "~~/lib/chains";
 import { type Listing, TOKEN_SYMBOL, fmtAmount, useListings, useMetadata, usePoolEvents } from "~~/lib/pools";
 import { buildProfile, useContributions } from "~~/lib/stats";
 
@@ -18,12 +20,15 @@ const Row = ({ item, note }: { item: Listing; note: string }) => {
     <li className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-base-200/60">
       <div className="min-w-0">
         <Link
-          href={`/initiative/${item.id}`}
+          href={initiativePath(item)}
           className="block truncate font-medium after:absolute after:inset-0 after:content-['']"
         >
           {meta.title}
         </Link>
-        <div className="text-sm tabular opacity-70">{note}</div>
+        <div className="flex flex-wrap items-center gap-x-3 text-sm tabular opacity-70">
+          <span>{note}</span>
+          <ChainBadge chainId={item.chainId} />
+        </div>
       </div>
       <StatusBadge status={item.status} />
     </li>
@@ -49,7 +54,6 @@ const ProfilePage: NextPage<{ params: Promise<{ address: string }> }> = ({ param
   const valid = isAddress(raw);
   const address = (valid ? raw : "0x0000000000000000000000000000000000000000") as `0x${string}`;
   const { address: me } = useAccount();
-  const { targetNetwork } = useTargetNetwork();
   const { copyToClipboard, isCopiedToClipboard } = useCopyToClipboard();
   const { listings, isLoading } = useListings();
   const { data: contributions } = useContributions();
@@ -59,7 +63,7 @@ const ProfilePage: NextPage<{ params: Promise<{ address: string }> }> = ({ param
     () => buildProfile(address, listings, contributions, events),
     [address, listings, contributions, events],
   );
-  const byId = useMemo(() => new Map(listings.map(l => [l.id, l])), [listings]);
+  const byId = useMemo(() => new Map(listings.map(l => [l.uid, l])), [listings]);
 
   if (!valid) {
     return (
@@ -72,7 +76,6 @@ const ProfilePage: NextPage<{ params: Promise<{ address: string }> }> = ({ param
     );
   }
 
-  const explorer = targetNetwork.blockExplorers?.default.url;
   const isMe = me?.toLowerCase() === address.toLowerCase();
   const empty =
     profile.backed.length + profile.created.length + profile.reviewing.length + profile.receiving.length === 0;
@@ -98,17 +101,18 @@ const ProfilePage: NextPage<{ params: Promise<{ address: string }> }> = ({ param
               <ClipboardDocumentIcon className="h-4 w-4" />
               {isCopiedToClipboard ? "Copied" : "Copy address"}
             </button>
-            {explorer && (
+            {POOL_CHAINS.filter(c => c.explorerUrl).map(c => (
               <a
+                key={c.id}
                 className="btn btn-sm border-base-300 bg-base-100"
-                href={`${explorer}/address/${address}`}
+                href={`${c.explorerUrl}/address/${address}`}
                 target="_blank"
                 rel="noreferrer noopener"
               >
-                Block explorer
+                {POOL_CHAINS.length > 1 ? `${c.label} explorer` : "Block explorer"}
                 <ArrowUpRightIcon className="h-3.5 w-3.5" />
               </a>
-            )}
+            ))}
             {isMe && (
               <Link href="/activity" className="btn btn-sm btn-primary">
                 My activity
@@ -145,10 +149,10 @@ const ProfilePage: NextPage<{ params: Promise<{ address: string }> }> = ({ param
           {profile.backed.length > 0 && (
             <Section title="Backed">
               {profile.backed.map(b => {
-                const item = byId.get(b.id);
+                const item = byId.get(b.uid);
                 return item ? (
                   <Row
-                    key={b.id}
+                    key={b.uid}
                     item={item}
                     note={`${fmtAmount(b.total)} ${TOKEN_SYMBOL} in ${b.count} ${b.count === 1 ? "contribution" : "contributions"}`}
                   />
@@ -160,9 +164,9 @@ const ProfilePage: NextPage<{ params: Promise<{ address: string }> }> = ({ param
           {profile.reviewing.length > 0 && (
             <Section title="On the review committee">
               {profile.reviewing.map(r => {
-                const item = byId.get(r.id);
+                const item = byId.get(r.uid);
                 return item ? (
-                  <Row key={r.id} item={item} note={`${r.votes} ${r.votes === 1 ? "vote" : "votes"} cast`} />
+                  <Row key={r.uid} item={item} note={`${r.votes} ${r.votes === 1 ? "vote" : "votes"} cast`} />
                 ) : null;
               })}
             </Section>
@@ -170,25 +174,22 @@ const ProfilePage: NextPage<{ params: Promise<{ address: string }> }> = ({ param
 
           {profile.created.length > 0 && (
             <Section title="Created">
-              {profile.created.map(id => {
-                const item = byId.get(id);
-                return item ? (
-                  <Row
-                    key={id}
-                    item={item}
-                    note={`${fmtAmount(item.raised)} of ${fmtAmount(item.goal)} ${TOKEN_SYMBOL}`}
-                  />
-                ) : null;
-              })}
+              {profile.created.map(item => (
+                <Row
+                  key={item.uid}
+                  item={item}
+                  note={`${fmtAmount(item.raised)} of ${fmtAmount(item.goal)} ${TOKEN_SYMBOL}`}
+                />
+              ))}
             </Section>
           )}
 
           {profile.receiving.length > 0 && (
             <Section title="Doing the work">
               {profile.receiving.map(r => {
-                const item = byId.get(r.id);
+                const item = byId.get(r.uid);
                 return item ? (
-                  <Row key={r.id} item={item} note={`${fmtAmount(r.paid)} ${TOKEN_SYMBOL} approved so far`} />
+                  <Row key={r.uid} item={item} note={`${fmtAmount(r.paid)} ${TOKEN_SYMBOL} approved so far`} />
                 ) : null;
               })}
             </Section>

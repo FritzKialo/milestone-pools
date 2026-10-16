@@ -2,38 +2,51 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
-import { useDeployedContractInfo, useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { erc20Abi, parseAbi } from "viem";
+import { useAccount, useReadContract } from "wagmi";
+import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { useChainWrite } from "~~/hooks/useChainWrite";
+import { MULTI_CHAIN, poolChain } from "~~/lib/chains";
 import { type Initiative, TOKEN_SYMBOL, fmtAmount, parseAmount } from "~~/lib/pools";
-import { IS_TESTNET } from "~~/lib/site";
+
+const mintAbi = parseAbi(["function mint(address to, uint256 amount)"]);
 
 export const ContributeBox = ({ item }: { item: Initiative }) => {
-  const { address } = useAccount();
-  const { data: pools } = useDeployedContractInfo({ contractName: "MilestonePools" });
+  const { address, chain: walletChain } = useAccount();
+  const net = poolChain(item.chainId);
+  const pools = net?.pools;
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const { data: balance } = useScaffoldReadContract({
-    contractName: "MockUSDC",
+  const { data: balance } = useReadContract({
+    chainId: item.chainId,
+    address: item.token,
+    abi: erc20Abi,
     functionName: "balanceOf",
-    args: [address],
-    watch: true,
+    args: address ? [address] : undefined,
+    query: { enabled: !!address, refetchInterval: 5000 },
   });
-  const { data: allowance } = useScaffoldReadContract({
-    contractName: "MockUSDC",
+  const { data: allowance } = useReadContract({
+    chainId: item.chainId,
+    address: item.token,
+    abi: erc20Abi,
     functionName: "allowance",
-    args: [address, pools?.address],
-    watch: true,
+    args: address && pools ? [address, pools.address] : undefined,
+    query: { enabled: !!address && !!pools, refetchInterval: 5000 },
   });
   const { data: mine } = useScaffoldReadContract({
     contractName: "MilestonePools",
     functionName: "contributions",
+    chainId: item.chainId,
     args: [BigInt(item.id), address],
     watch: true,
   });
 
-  const { writeContractAsync: token } = useScaffoldWriteContract({ contractName: "MockUSDC" });
-  const { writeContractAsync: poolWrite } = useScaffoldWriteContract({ contractName: "MilestonePools" });
+  const send = useChainWrite();
+  const { writeContractAsync: poolWrite } = useScaffoldWriteContract({
+    contractName: "MilestonePools",
+    chainId: item.chainId,
+  });
 
   const remaining = item.goal - item.raised;
   const amount = parseAmount(text);
@@ -94,7 +107,16 @@ export const ContributeBox = ({ item }: { item: Initiative }) => {
         <button
           className="btn btn-neutral w-full"
           disabled={busy || !pools}
-          onClick={() => run(() => token({ functionName: "approve", args: [pools?.address, amount ?? 0n] }))}
+          onClick={() =>
+            run(() =>
+              send(item.chainId, {
+                address: item.token,
+                abi: erc20Abi,
+                functionName: "approve",
+                args: [pools!.address, amount ?? 0n],
+              }),
+            )
+          }
         >
           {busy ? (
             <span className="loading loading-spinner loading-sm" />
@@ -122,6 +144,9 @@ export const ContributeBox = ({ item }: { item: Initiative }) => {
           )}
         </button>
       )}
+      {MULTI_CHAIN && net && walletChain?.id !== item.chainId && (
+        <p className="text-xs opacity-60">Your wallet will switch to {net.label} when you confirm.</p>
+      )}
       <p className="text-xs opacity-60">
         Contributions are held by the contract. If the initiative fails or is cancelled, the part that has not been paid
         out is refundable to you. Read{" "}
@@ -130,12 +155,21 @@ export const ContributeBox = ({ item }: { item: Initiative }) => {
         </Link>{" "}
         first.
       </p>
-      {IS_TESTNET && (
+      {net?.testnet && (
         <button
           type="button"
           className="link text-xs opacity-70"
           disabled={busy}
-          onClick={() => run(() => token({ functionName: "mint", args: [address, 1_000_000_000n] }))}
+          onClick={() =>
+            run(() =>
+              send(item.chainId, {
+                address: item.token,
+                abi: mintAbi as any,
+                functionName: "mint",
+                args: [address, 1_000_000_000n],
+              }),
+            )
+          }
         >
           Get 1,000 test {TOKEN_SYMBOL}
         </button>

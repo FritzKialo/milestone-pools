@@ -4,13 +4,13 @@ import { useState } from "react";
 import type { NextPage } from "next";
 import { ClipboardDocumentIcon, EnvelopeIcon, LifebuoyIcon, ShieldExclamationIcon } from "@heroicons/react/24/outline";
 import { FaqList } from "~~/components/pools/FaqList";
-import { useDeployedContractInfo, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { POOL_CHAINS } from "~~/lib/chains";
 import { IS_TESTNET, REPO_URL, SUPPORT_EMAIL } from "~~/lib/site";
 
 const FIXES = [
   {
     q: "A transaction fails with a wrong network message",
-    a: "You can browse from any network, but sending a transaction needs your wallet on the network shown in the footer (Network: ...). Switch to it in your wallet, then try again.",
+    a: "You can browse without a wallet. When you send a transaction, your wallet is asked to switch to the network the initiative lives on. Approve the switch, or switch inside your wallet yourself, then try again.",
   },
   ...(IS_TESTNET
     ? [
@@ -43,18 +43,18 @@ const FIXES = [
 ];
 
 const Support: NextPage = () => {
-  const { targetNetwork } = useTargetNetwork();
-  const { data: pools } = useDeployedContractInfo({ contractName: "MilestonePools" });
-  const { data: usdc } = useDeployedContractInfo({ contractName: "MockUSDC" });
   const [copied, setCopied] = useState(false);
 
   const diagnostics = () =>
     [
       `Page: ${window.location.origin}${window.location.pathname}`,
-      `Network: ${targetNetwork.name} (chain ${targetNetwork.id})`,
-      `MilestonePools: ${pools?.address ?? "not found"}`,
-      `Token: ${usdc?.address ?? "not found"}`,
+      ...POOL_CHAINS.flatMap(c => [
+        `Network: ${c.chain.name} (chain ${c.id})`,
+        `MilestonePools: ${c.pools.address}`,
+        `Token: ${c.usdc ?? "not found"}`,
+      ]),
       "",
+      "Network the initiative is on:",
       "Initiative ID:",
       "Transaction hash:",
       "What I did:",

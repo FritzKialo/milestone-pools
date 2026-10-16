@@ -11,18 +11,15 @@ import {
   ClipboardDocumentIcon,
   LockClosedIcon,
 } from "@heroicons/react/24/outline";
+import { ChainBadge } from "~~/components/pools/ChainBadge";
 import { CategoryIcon } from "~~/components/pools/Cover";
 import { FeedList } from "~~/components/pools/FeedList";
 import { FundingBar } from "~~/components/pools/FundingBar";
 import { StatusBadge } from "~~/components/pools/StatusBadge";
 import { BlockieAvatar, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
-import {
-  useCopyToClipboard,
-  useDeployedContractInfo,
-  useScaffoldReadContract,
-  useScaffoldWriteContract,
-  useTargetNetwork,
-} from "~~/hooks/scaffold-eth";
+import { useCopyToClipboard } from "~~/hooks/scaffold-eth";
+import { useChainWrite } from "~~/hooks/useChainWrite";
+import { MULTI_CHAIN, POOL_CHAINS, initiativePath, poolChain } from "~~/lib/chains";
 import { downloadCsv } from "~~/lib/csv";
 import { useFeed, useTitleMap } from "~~/lib/feed";
 import {
@@ -55,15 +52,18 @@ const Row = ({ item, note, action }: { item: Listing; note: string; action?: Rea
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Link
-            href={`/initiative/${item.id}`}
+            href={initiativePath(item)}
             className="font-medium after:absolute after:inset-0 after:content-[''] hover:text-primary"
           >
             {meta.title}
           </Link>
           <StatusBadge status={item.status} />
         </div>
-        <p className="text-sm tabular opacity-70">
-          {CATEGORIES[item.category] ?? "Other"}. {note}
+        <p className="flex flex-wrap items-center gap-x-3 text-sm tabular opacity-70">
+          <span>
+            {CATEGORIES[item.category] ?? "Other"}. {note}
+          </span>
+          <ChainBadge chainId={item.chainId} />
         </p>
         <div className="max-w-sm">
           <FundingBar
@@ -95,50 +95,57 @@ type Todo = { key: string; text: string; action: React.ReactNode };
 
 const Activity: NextPage = () => {
   const { address } = useAccount();
-  const { targetNetwork } = useTargetNetwork();
   const { copyToClipboard, isCopiedToClipboard } = useCopyToClipboard();
   const { listings, isLoading } = useListings();
   const title = useTitleMap();
   const { items: feed } = useFeed(10, undefined, address);
-  const { data: pools } = useDeployedContractInfo({ contractName: "MilestonePools" });
-  const { data: usdc } = useDeployedContractInfo({ contractName: "MockUSDC" });
-  const { writeContractAsync } = useScaffoldWriteContract({ contractName: "MilestonePools" });
+  const send = useChainWrite();
   const [busy, setBusy] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab | null>(null);
 
-  const { data: credit } = useScaffoldReadContract({
-    contractName: "MilestonePools",
-    functionName: "credits",
-    args: [usdc?.address, address],
-    watch: true,
+  // Approved payments waiting to be withdrawn, one balance per network.
+  const { data: creditReads } = useReadContracts({
+    contracts: (address
+      ? POOL_CHAINS.filter(c => c.usdc).map(c => ({
+          chainId: c.id,
+          address: c.pools.address,
+          abi: c.pools.abi,
+          functionName: "credits",
+          args: [c.usdc, address],
+        }))
+      : []) as any,
+    query: { enabled: !!address, refetchInterval: 5000 },
   });
 
-  const enabled = !!pools && !!address && listings.length > 0;
+  const enabled = !!address && listings.length > 0;
   const { data: backed } = useReadContracts({
     contracts: (enabled
-      ? listings.flatMap(l => [
-          {
-            chainId: targetNetwork.id,
-            address: pools.address,
-            abi: pools.abi,
-            functionName: "contributions",
-            args: [BigInt(l.id), address],
-          },
-          {
-            chainId: targetNetwork.id,
-            address: pools.address,
-            abi: pools.abi,
-            functionName: "refundableOf",
-            args: [BigInt(l.id), address],
-          },
-          {
-            chainId: targetNetwork.id,
-            address: pools.address,
-            abi: pools.abi,
-            functionName: "hasVoted",
-            args: [BigInt(l.id), l.reviewNo, address],
-          },
-        ])
+      ? listings.flatMap(l => {
+          const pools = poolChain(l.chainId)!.pools;
+          return [
+            {
+              chainId: l.chainId,
+              address: pools.address,
+              abi: pools.abi,
+              functionName: "contributions",
+              args: [BigInt(l.id), address],
+            },
+            {
+              chainId: l.chainId,
+              address: pools.address,
+              abi: pools.abi,
+              functionName: "refundableOf",
+              args: [BigInt(l.id), address],
+            },
+            {
+              chainId: l.chainId,
+              address: pools.address,
+              abi: pools.abi,
+              functionName: "hasVoted",
+              args: [BigInt(l.id), l.reviewNo, address],
+            },
+          ];
+        })
       : []) as any,
     query: { enabled, refetchInterval: 5000 },
   });
@@ -206,30 +213,46 @@ const Activity: NextPage = () => {
 
   const totalBacked = backedList.reduce((s, m) => s + m.contributed, 0n);
   const totalRefundable = backedList.reduce((s, m) => s + m.refundable, 0n);
-  const withdrawable = credit ?? 0n;
+  const credits = POOL_CHAINS.filter(c => c.usdc).map((c, k) => {
+    const r = creditReads?.[k];
+    return { chain: c, amount: r?.status === "success" ? (r.result as bigint) : 0n };
+  });
+  const withdrawable = credits.reduce((s, c) => s + c.amount, 0n);
 
-  const claimRefund = (id: number) =>
-    run(`refund${id}`, () => writeContractAsync({ functionName: "refund", args: [BigInt(id)] }));
+  const withdraw = (c: (typeof credits)[number]["chain"]) =>
+    run(`withdraw${c.id}`, () =>
+      send(c.id, { address: c.pools.address, abi: c.pools.abi, functionName: "withdraw", args: [c.usdc] }),
+    );
+
+  const claimRefund = (l: Listing) =>
+    run(`refund${l.uid}`, () =>
+      send(l.chainId, {
+        address: poolChain(l.chainId)!.pools.address,
+        abi: poolChain(l.chainId)!.pools.abi,
+        functionName: "refund",
+        args: [BigInt(l.id)],
+      }),
+    );
 
   const todos: Todo[] = [
     ...backedList
       .filter(m => m.refundable > 0n)
       .map(m => ({
-        key: `refund${m.l.id}`,
-        text: `Claim your ${fmtAmount(m.refundable)} ${TOKEN_SYMBOL} refund from ${title(m.l.id)}`,
+        key: `refund${m.l.uid}`,
+        text: `Claim your ${fmtAmount(m.refundable)} ${TOKEN_SYMBOL} refund from ${title(m.l.uid)}`,
         action: (
-          <button className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => claimRefund(m.l.id)}>
-            {busy === `refund${m.l.id}` ? <span className="loading loading-spinner loading-xs" /> : "Claim refund"}
+          <button className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => claimRefund(m.l)}>
+            {busy === `refund${m.l.uid}` ? <span className="loading loading-spinner loading-xs" /> : "Claim refund"}
           </button>
         ),
       })),
     ...committee
       .filter(m => m.l.status === "Active" && m.l.phase === "UnderReview" && !m.voted)
       .map(m => ({
-        key: `vote${m.l.id}`,
-        text: `Vote on milestone ${m.l.currentMilestone + 1} of ${title(m.l.id)}`,
+        key: `vote${m.l.uid}`,
+        text: `Vote on milestone ${m.l.currentMilestone + 1} of ${title(m.l.uid)}`,
         action: (
-          <Link href={`/initiative/${m.l.id}`} className="btn btn-sm btn-primary">
+          <Link href={initiativePath(m.l)} className="btn btn-sm btn-primary">
             Open
           </Link>
         ),
@@ -237,10 +260,10 @@ const Activity: NextPage = () => {
     ...committee
       .filter(m => m.l.status === "Selecting")
       .map(m => ({
-        key: `select${m.l.id}`,
-        text: `Choose a grantee for ${title(m.l.id)}`,
+        key: `select${m.l.uid}`,
+        text: `Choose a grantee for ${title(m.l.uid)}`,
         action: (
-          <Link href={`/initiative/${m.l.id}`} className="btn btn-sm btn-primary">
+          <Link href={initiativePath(m.l)} className="btn btn-sm btn-primary">
             Open
           </Link>
         ),
@@ -248,10 +271,10 @@ const Activity: NextPage = () => {
     ...delivering
       .filter(l => l.status === "Active" && l.phase === "AwaitingSubmission")
       .map(l => ({
-        key: `evidence${l.id}`,
-        text: `Submit evidence for milestone ${l.currentMilestone + 1} of ${title(l.id)}`,
+        key: `evidence${l.uid}`,
+        text: `Submit evidence for milestone ${l.currentMilestone + 1} of ${title(l.uid)}`,
         action: (
-          <Link href={`/initiative/${l.id}`} className="btn btn-sm btn-primary">
+          <Link href={initiativePath(l)} className="btn btn-sm btn-primary">
             Open
           </Link>
         ),
@@ -276,21 +299,45 @@ const Activity: NextPage = () => {
 
   const exportCsv = () =>
     downloadCsv("my-milestone-pools-activity.csv", [
-      ["initiative", "title", "my role", "status", `contributed (${TOKEN_SYMBOL})`, `refundable (${TOKEN_SYMBOL})`],
+      [
+        "network",
+        "initiative",
+        "title",
+        "my role",
+        "status",
+        `contributed (${TOKEN_SYMBOL})`,
+        `refundable (${TOKEN_SYMBOL})`,
+      ],
       ...backedList.map(m => [
+        poolChain(m.l.chainId)?.label ?? m.l.chainId,
         m.l.id,
-        title(m.l.id),
+        title(m.l.uid),
         "backer",
         m.l.status,
         Number(m.contributed) / 10 ** TOKEN_DECIMALS,
         Number(m.refundable) / 10 ** TOKEN_DECIMALS,
       ]),
-      ...created.map(l => [l.id, title(l.id), "creator", l.status, "", ""]),
-      ...delivering.map(l => [l.id, title(l.id), "grantee", l.status, "", ""]),
-      ...committee.map(m => [m.l.id, title(m.l.id), "reviewer", m.l.status, "", ""]),
+      ...created.map(l => [poolChain(l.chainId)?.label ?? l.chainId, l.id, title(l.uid), "creator", l.status, "", ""]),
+      ...delivering.map(l => [
+        poolChain(l.chainId)?.label ?? l.chainId,
+        l.id,
+        title(l.uid),
+        "grantee",
+        l.status,
+        "",
+        "",
+      ]),
+      ...committee.map(m => [
+        poolChain(m.l.chainId)?.label ?? m.l.chainId,
+        m.l.id,
+        title(m.l.uid),
+        "reviewer",
+        m.l.status,
+        "",
+        "",
+      ]),
     ]);
 
-  const explorer = targetNetwork.blockExplorers?.default.url;
   const nothingAtAll = !isLoading && backedList.length + created.length + delivering.length + committee.length === 0;
 
   return (
@@ -304,7 +351,9 @@ const Activity: NextPage = () => {
             <h1 className="text-2xl font-bold">My activity</h1>
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm opacity-75">
               <span className="font-mono">{shortAddr(address)}</span>
-              <span className="badge badge-ghost badge-sm">{targetNetwork.name}</span>
+              {POOL_CHAINS.map(c => (
+                <ChainBadge key={c.id} chainId={c.id} always />
+              ))}
             </p>
           </div>
         </div>
@@ -320,17 +369,18 @@ const Activity: NextPage = () => {
           <Link href={`/profile/${address}`} className="btn btn-sm border-base-300 bg-base-100">
             Public profile
           </Link>
-          {explorer && (
+          {POOL_CHAINS.filter(c => c.explorerUrl).map(c => (
             <a
+              key={c.id}
               className="btn btn-sm border-base-300 bg-base-100"
-              href={`${explorer}/address/${address}`}
+              href={`${c.explorerUrl}/address/${address}`}
               target="_blank"
               rel="noreferrer noopener"
             >
-              Explorer
+              {MULTI_CHAIN ? `${c.label} explorer` : "Explorer"}
               <ArrowUpRightIcon className="h-3.5 w-3.5" />
             </a>
-          )}
+          ))}
         </div>
       </header>
 
@@ -347,13 +397,24 @@ const Activity: NextPage = () => {
             Approved milestone payments are credited here. Nothing is sent until you withdraw, and you choose when.
           </p>
         </div>
-        <button
-          className="btn btn-primary btn-glow btn-lg"
-          disabled={withdrawable === 0n || !!busy || !usdc}
-          onClick={() => run("withdraw", () => writeContractAsync({ functionName: "withdraw", args: [usdc?.address] }))}
-        >
-          {busy === "withdraw" ? <span className="loading loading-spinner loading-sm" /> : "Withdraw"}
-        </button>
+        <div className="flex flex-col gap-2">
+          {credits.map(c => (
+            <button
+              key={c.chain.id}
+              className="btn btn-primary btn-glow btn-lg"
+              disabled={c.amount === 0n || !!busy}
+              onClick={() => withdraw(c.chain)}
+            >
+              {busy === `withdraw${c.chain.id}` ? (
+                <span className="loading loading-spinner loading-sm" />
+              ) : MULTI_CHAIN ? (
+                `Withdraw ${fmtAmount(c.amount)} on ${c.chain.label}`
+              ) : (
+                "Withdraw"
+              )}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6" aria-label="Summary">
@@ -436,19 +497,15 @@ const Activity: NextPage = () => {
               {current === "backed" &&
                 backedList.map(m => (
                   <Row
-                    key={m.l.id}
+                    key={m.l.uid}
                     item={m.l}
                     note={`You contributed ${fmtAmount(m.contributed)} ${TOKEN_SYMBOL}${
                       m.refundable > 0n ? `. Refund available: ${fmtAmount(m.refundable)} ${TOKEN_SYMBOL}` : ""
                     }`}
                     action={
                       m.refundable > 0n ? (
-                        <button
-                          className="btn btn-sm btn-primary"
-                          disabled={!!busy}
-                          onClick={() => claimRefund(m.l.id)}
-                        >
-                          {busy === `refund${m.l.id}` ? (
+                        <button className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => claimRefund(m.l)}>
+                          {busy === `refund${m.l.uid}` ? (
                             <span className="loading loading-spinner loading-xs" />
                           ) : (
                             "Claim refund"
@@ -461,19 +518,19 @@ const Activity: NextPage = () => {
               {current === "created" &&
                 created.map(l => (
                   <Row
-                    key={l.id}
+                    key={l.uid}
                     item={l}
                     note={`${fmtAmount(l.raised)} of ${fmtAmount(l.goal)} ${TOKEN_SYMBOL} raised`}
                   />
                 ))}
-              {current === "delivering" && delivering.map(l => <Row key={l.id} item={l} note={deliveringNote(l)} />)}
+              {current === "delivering" && delivering.map(l => <Row key={l.uid} item={l} note={deliveringNote(l)} />)}
               {current === "reviewing" &&
                 committee.map(m => {
                   const needsVote = m.l.status === "Active" && m.l.phase === "UnderReview" && !m.voted;
                   const selecting = m.l.status === "Selecting";
                   return (
                     <Row
-                      key={m.l.id}
+                      key={m.l.uid}
                       item={m.l}
                       note={
                         needsVote
@@ -484,7 +541,7 @@ const Activity: NextPage = () => {
                       }
                       action={
                         needsVote || selecting ? (
-                          <Link href={`/initiative/${m.l.id}`} className="btn btn-sm btn-primary">
+                          <Link href={initiativePath(m.l)} className="btn btn-sm btn-primary">
                             Open
                           </Link>
                         ) : undefined
@@ -502,7 +559,7 @@ const Activity: NextPage = () => {
           <h2 className="text-xl font-semibold">Your recent activity</h2>
           <p className="text-sm opacity-60">The latest things that involve your wallet, newest first.</p>
         </div>
-        <FeedList items={feed} empty="Nothing involving this wallet has happened on this network yet." />
+        <FeedList items={feed} empty="Nothing involving this wallet has happened yet." />
       </section>
     </div>
   );

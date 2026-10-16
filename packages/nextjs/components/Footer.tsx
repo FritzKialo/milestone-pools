@@ -3,9 +3,11 @@ import Link from "next/link";
 import { hardhat } from "viem/chains";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { Logo } from "~~/components/Header";
+import { ChainBadge } from "~~/components/pools/ChainBadge";
 import { ContractLink } from "~~/components/pools/ContractLink";
 import { Faucet } from "~~/components/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
+import { POOL_CHAINS } from "~~/lib/chains";
 import { REPO_URL } from "~~/lib/site";
 
 const COLUMNS = [
@@ -79,15 +81,17 @@ export const Footer = () => {
         <div>
           <h2 className="mb-3 text-sm font-semibold">On-chain</h2>
           <ul className="space-y-2 text-sm">
-            <li className="opacity-80">
-              Network: <strong>{targetNetwork.name}</strong>
-            </li>
-            <li>
-              <ContractLink name="MilestonePools" label="Pools" />
-            </li>
-            <li>
-              <ContractLink name="MockUSDC" label="USDC" />
-            </li>
+            {POOL_CHAINS.map(c => (
+              <li key={c.id} className="space-y-1">
+                <ChainBadge chainId={c.id} always className="font-semibold opacity-100" />
+                <div>
+                  <ContractLink name="MilestonePools" label="Pools" chainId={c.id} />
+                </div>
+                <div>
+                  <ContractLink name="USDC" label="USDC" chainId={c.id} />
+                </div>
+              </li>
+            ))}
             {REPO_URL && (
               <li>
                 <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className="opacity-70 hover:opacity-100">

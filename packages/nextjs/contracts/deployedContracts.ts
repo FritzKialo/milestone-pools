@@ -1772,7 +1772,7 @@ const deployedContracts = {
   },
   11155111: {
     MilestonePools: {
-      address: "0x50ad6c7e2f6c1598ccd35a3e0194abd71a470fab",
+      address: "0xb09af45694a3455998380033bb75703cdc087e88",
       abi: [
         {
           inputs: [
@@ -1784,6 +1784,16 @@ const deployedContracts = {
             {
               internalType: "uint256[]",
               name: "minimums",
+              type: "uint256[]",
+            },
+            {
+              internalType: "uint256[]",
+              name: "maxGoals",
+              type: "uint256[]",
+            },
+            {
+              internalType: "uint256[]",
+              name: "totalCaps",
               type: "uint256[]",
             },
           ],
@@ -1798,6 +1808,11 @@ const deployedContracts = {
         {
           inputs: [],
           name: "BelowMinimum",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "CapReached",
           type: "error",
         },
         {
@@ -1822,6 +1837,11 @@ const deployedContracts = {
         },
         {
           inputs: [],
+          name: "GoalTooLarge",
+          type: "error",
+        },
+        {
+          inputs: [],
           name: "InvalidCandidate",
           type: "error",
         },
@@ -1833,6 +1853,11 @@ const deployedContracts = {
         {
           inputs: [],
           name: "InvalidGrantee",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidLimit",
           type: "error",
         },
         {
@@ -3024,6 +3049,25 @@ const deployedContracts = {
               type: "address",
             },
           ],
+          name: "maxGoal",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+          ],
           name: "minContribution",
           outputs: [
             {
@@ -3130,6 +3174,25 @@ const deployedContracts = {
         {
           inputs: [
             {
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+          ],
+          name: "totalCap",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
               internalType: "uint256",
               name: "id",
               type: "uint256",
@@ -3178,7 +3241,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11928946,
+      deployedOnBlock: 11930048,
     },
     MockUSDC: {
       address: "0xa24e43dd2796d2baced76504baaab1107f10c6e4",

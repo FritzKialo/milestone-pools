@@ -1,31 +1,42 @@
 import { deployScript, artifacts } from "../rocketh/deploy.js";
+import { planFor } from "../rocketh/plan.js";
 
 /**
- * Deploys a test USDC (free to mint, 6 decimals) and MilestonePools with that token allowlisted.
- * The token is a stand-in for demos on local and test networks only.
- * A mainnet deployment would pass real token addresses to the constructor instead.
+ * Deploys MilestonePools.
+ *
+ * On local and test networks it also deploys a free test USDC (6 decimals) and uses generous limits.
+ * On Base, Arbitrum and Optimism it uses Circle's real USDC and small beta limits (500 USDC per initiative,
+ * 5,000 USDC held in total, unless overridden). See ../rocketh/plan.ts. Limits are fixed at deployment.
  */
 export default deployScript(
   async env => {
     const { deployer } = env.namedAccounts;
+    const networkName = (env as unknown as { network: { name: string } }).network.name;
+    const plan = planFor(networkName);
 
-    const usdc = await env.deploy("MockUSDC", {
-      account: deployer,
-      artifact: artifacts.MockERC20,
-      args: ["USD Coin (test)", "USDC", 6],
-    });
+    let tokenAddress = plan.token as `0x${string}` | undefined;
+    if (plan.mock) {
+      const usdc = await env.deploy("MockUSDC", {
+        account: deployer,
+        artifact: artifacts.MockERC20,
+        args: ["USD Coin (test)", "USDC", 6],
+      });
+      tokenAddress = usdc.address;
+      console.log("Test USDC:      ", usdc.address);
+    } else {
+      console.log("USDC (Circle):  ", tokenAddress);
+      console.log(
+        `Limits: minimum ${plan.minimum / 1_000_000n} USDC, goal limit ${plan.maxGoal / 1_000_000n} USDC, total cap ${plan.totalCap / 1_000_000n} USDC`,
+      );
+    }
 
     const pools = await env.deploy("MilestonePools", {
       account: deployer,
       artifact: artifacts.MilestonePools,
-      // allowlist: [token]; minimum contribution: 1 USDC; largest goal per initiative: 1,000,000 USDC;
-      // most the contract may hold at once: 10,000,000 USDC. These are generous demo limits.
-      // A real beta launch would use small values, for example a 500 USDC goal limit and a
-      // 5,000 USDC total cap, because limits are fixed at deployment.
-      args: [[usdc.address], [1_000_000n], [1_000_000_000_000n], [10_000_000_000_000n]],
+      // allowlist; minimum contribution; largest goal per initiative; most the contract may hold at once
+      args: [[tokenAddress as `0x${string}`], [plan.minimum], [plan.maxGoal], [plan.totalCap]],
     });
 
-    console.log("Test USDC:      ", usdc.address);
     console.log("MilestonePools: ", pools.address);
   },
   { tags: ["MilestonePools"] },

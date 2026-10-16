@@ -19,7 +19,7 @@ export const LiveTicker = () => {
           {loop.map((it, i) => (
             <li key={`${it.key}-${i}`} aria-hidden={i >= items.length} className="whitespace-nowrap">
               <Link
-                href={`/initiative/${it.id}`}
+                href={it.href}
                 className="opacity-85 hover:text-primary hover:opacity-100"
                 tabIndex={i >= items.length ? -1 : 0}
               >

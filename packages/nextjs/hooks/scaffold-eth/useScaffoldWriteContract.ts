@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { MutateOptions } from "@tanstack/react-query";
 import { Abi, ExtractAbiFunctionNames } from "abitype";
-import { Config, UseWriteContractParameters, useAccount, useConfig, useWriteContract } from "wagmi";
+import { Config, UseWriteContractParameters, useAccount, useConfig, useSwitchChain, useWriteContract } from "wagmi";
 import { WriteContractErrorType, WriteContractReturnType } from "wagmi/actions";
 import { WriteContractVariables } from "wagmi/query";
 import { useSelectedNetwork } from "~~/hooks/scaffold-eth";
@@ -84,6 +84,20 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
     chainId: selectedNetwork.id as AllowedChainIds,
   });
 
+  const { switchChainAsync } = useSwitchChain();
+
+  /** Asks the wallet to move to the initiative's network, right when the person acts, instead of showing a banner. */
+  const ensureNetwork = async (): Promise<boolean> => {
+    if (accountChain?.id === selectedNetwork.id) return true;
+    try {
+      await switchChainAsync({ chainId: selectedNetwork.id });
+      return true;
+    } catch {
+      notification.error(`Switch your wallet to ${selectedNetwork.name} to continue.`);
+      return false;
+    }
+  };
+
   const sendContractWriteAsyncTx = async <
     TFunctionName extends ExtractAbiFunctionNames<ContractAbi<TContractName>, "nonpayable" | "payable">,
   >(
@@ -100,18 +114,15 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
       return;
     }
 
-    if (accountChain?.id !== selectedNetwork.id) {
-      notification.error(`Wallet is connected to the wrong network. Please switch to ${selectedNetwork.name}`);
-      return;
-    }
-
     try {
       setIsMining(true);
+      if (!(await ensureNetwork())) return;
       const { blockConfirmations, onBlockConfirmation, ...mutateOptions } = options || {};
 
       const writeContractObject = {
         abi: deployedContractData.abi as Abi,
         address: deployedContractData.address,
+        chainId: selectedNetwork.id,
         ...variables,
       } as WriteContractVariables<Abi, string, any[], Config, number>;
 
@@ -161,26 +172,25 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
       return;
     }
 
-    if (accountChain?.id !== selectedNetwork.id) {
-      notification.error(`Wallet is connected to the wrong network. Please switch to ${selectedNetwork.name}`);
-      return;
-    }
-
-    wagmiContractWrite.writeContract(
-      {
-        abi: deployedContractData.abi as Abi,
-        address: deployedContractData.address,
-        ...variables,
-      } as WriteContractVariables<Abi, string, any[], Config, number>,
-      options as
-        | MutateOptions<
-            WriteContractReturnType,
-            WriteContractErrorType,
-            WriteContractVariables<Abi, string, any[], Config, number>,
-            unknown
-          >
-        | undefined,
-    );
+    void ensureNetwork().then(ok => {
+      if (!ok) return;
+      wagmiContractWrite.writeContract(
+        {
+          abi: deployedContractData.abi as Abi,
+          address: deployedContractData.address,
+          chainId: selectedNetwork.id,
+          ...variables,
+        } as WriteContractVariables<Abi, string, any[], Config, number>,
+        options as
+          | MutateOptions<
+              WriteContractReturnType,
+              WriteContractErrorType,
+              WriteContractVariables<Abi, string, any[], Config, number>,
+              unknown
+            >
+          | undefined,
+      );
+    });
   };
 
   return {

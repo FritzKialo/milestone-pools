@@ -11,6 +11,7 @@ import { InitiativeCard } from "~~/components/pools/InitiativeCard";
 import { InitiativeTable } from "~~/components/pools/InitiativeTable";
 import { CardGridSkeleton } from "~~/components/pools/Skeletons";
 import { ViewToggle } from "~~/components/pools/ViewToggle";
+import { MULTI_CHAIN, POOL_CHAINS, initiativePath, poolChain, poolChainBySlug } from "~~/lib/chains";
 import { downloadCsv } from "~~/lib/csv";
 import { useViewMode, useWatchlist } from "~~/lib/local";
 import {
@@ -18,6 +19,7 @@ import {
   type Listing,
   TOKEN_DECIMALS,
   TOKEN_SYMBOL,
+  byNewest,
   isClosedBad,
   isQualified,
   loadMetadata,
@@ -72,6 +74,7 @@ const ExploreInner = () => {
   const { view, setView } = useViewMode();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [category, setCategory] = useState<number | "all">(parseCategory(params.get("category")));
+  const [chain, setChain] = useState<number | "all">(poolChainBySlug(params.get("chain") ?? "")?.id ?? "all");
   const [status, setStatus] = useState<StatusFilter>(
     STATUS_FILTERS.some(f => f.key === params.get("status")) ? (params.get("status") as StatusFilter) : "all",
   );
@@ -87,19 +90,19 @@ const ExploreInner = () => {
   const [onlyMine, setOnlyMine] = useState(params.get("mine") === "1");
   const { address } = useAccount();
   const [compareOn, setCompareOn] = useState(false);
-  const [picked, setPicked] = useState<number[]>([]);
+  const [picked, setPicked] = useState<string[]>([]);
 
   // Titles live in metadata, so search needs them loaded. Cached per URI by react-query.
   const { data: titles } = useQuery({
-    queryKey: ["explore-titles", listings.map(l => `${l.id}:${l.metadataURI.length}`).join(",")],
+    queryKey: ["explore-titles", listings.map(l => `${l.uid}:${l.metadataURI.length}`).join(",")],
     queryFn: async () => {
       const entries = await Promise.all(
         listings.map(async l => {
           const m = await loadMetadata(l.metadataURI, `Initiative #${l.id}`);
-          return [l.id, { title: m.title, text: `${m.title} ${m.summary}`.toLowerCase() }] as const;
+          return [l.uid, { title: m.title, text: `${m.title} ${m.summary}`.toLowerCase() }] as const;
         }),
       );
-      return Object.fromEntries(entries) as Record<number, { title: string; text: string }>;
+      return Object.fromEntries(entries) as Record<string, { title: string; text: string }>;
     },
     enabled: listings.length > 0,
   });
@@ -116,19 +119,20 @@ const ExploreInner = () => {
       l =>
         matchesStatus(l, status) &&
         (category === "all" || l.category === category) &&
+        (chain === "all" || l.chainId === chain) &&
         (!onlyQualified || (l.status === "Funding" && isQualified(l))) &&
-        (!onlySaved || saved.includes(l.id)) &&
+        (!onlySaved || saved.includes(l.uid)) &&
         (!onlyCalls || l.isRfp) &&
         (!onlyMine || (!!address && l.proposer.toLowerCase() === address.toLowerCase())) &&
         SIZES.find(z => z.key === size)!.test(l.goal) &&
-        (!q || (titles?.[l.id]?.text ?? "").includes(q)),
+        (!q || (titles?.[l.uid]?.text ?? "").includes(q)),
     );
     const sorters: Record<Sort, (a: Listing, b: Listing) => number> = {
-      newest: (a, b) => b.id - a.id,
+      newest: byNewest,
       ending: (a, b) => {
         const aOpen = a.status === "Funding" ? a.fundingDeadline : Number.MAX_SAFE_INTEGER;
         const bOpen = b.status === "Funding" ? b.fundingDeadline : Number.MAX_SAFE_INTEGER;
-        return aOpen - bOpen || b.id - a.id;
+        return aOpen - bOpen || byNewest(a, b);
       },
       funded: (a, b) => Number((b.raised * 10_000n) / (b.goal || 1n) - (a.raised * 10_000n) / (a.goal || 1n)),
       backers: (a, b) => b.backers - a.backers,
@@ -140,6 +144,7 @@ const ExploreInner = () => {
     titles,
     query,
     category,
+    chain,
     status,
     sort,
     size,
@@ -156,6 +161,7 @@ const ExploreInner = () => {
   const filtersOn =
     query !== "" ||
     category !== "all" ||
+    chain !== "all" ||
     status !== "all" ||
     size !== "any" ||
     onlyQualified ||
@@ -168,6 +174,7 @@ const ExploreInner = () => {
     const p = new URLSearchParams();
     if (query.trim()) p.set("q", query.trim());
     if (category !== "all") p.set("category", String(category));
+    if (chain !== "all") p.set("chain", poolChain(chain)?.slug ?? "");
     if (status !== "all") p.set("status", status);
     if (size !== "any") p.set("size", size);
     if (sort !== "newest") p.set("sort", sort);
@@ -177,13 +184,13 @@ const ExploreInner = () => {
     if (onlyMine) p.set("mine", "1");
     const qs = p.toString();
     window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
-  }, [query, category, status, size, sort, onlyQualified, onlySaved, onlyCalls, onlyMine]);
+  }, [query, category, chain, status, size, sort, onlyQualified, onlySaved, onlyCalls, onlyMine]);
 
   const MAX_COMPARE = 3;
-  const compareFor = (id: number) => ({
-    selected: picked.includes(id),
+  const compareFor = (uid: string) => ({
+    selected: picked.includes(uid),
     disabled: picked.length >= MAX_COMPARE,
-    onToggle: () => setPicked(cur => (cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id])),
+    onToggle: () => setPicked(cur => (cur.includes(uid) ? cur.filter(x => x !== uid) : [...cur, uid])),
   });
 
   const copyLink = async () => {
@@ -198,6 +205,7 @@ const ExploreInner = () => {
   const exportCsv = () =>
     downloadCsv("milestone-pools-initiatives.csv", [
       [
+        "network",
         "id",
         "title",
         "category",
@@ -210,8 +218,9 @@ const ExploreInner = () => {
         "link",
       ],
       ...shown.map(l => [
+        poolChain(l.chainId)?.label ?? l.chainId,
         l.id,
-        titles?.[l.id]?.title ?? `Initiative #${l.id}`,
+        titles?.[l.uid]?.title ?? `Initiative #${l.id}`,
         CATEGORIES[l.category] ?? "Other",
         l.status,
         Number(l.raised) / 10 ** TOKEN_DECIMALS,
@@ -219,7 +228,7 @@ const ExploreInner = () => {
         l.backers,
         l.fundingDeadline ? new Date(l.fundingDeadline * 1000).toISOString() : "",
         l.proposer,
-        `${window.location.origin}/initiative/${l.id}`,
+        `${window.location.origin}${initiativePath(l)}`,
       ]),
     ]);
 
@@ -228,7 +237,9 @@ const ExploreInner = () => {
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold">Explore</h1>
-          <p className="opacity-70">Every initiative, read straight from the contract.</p>
+          <p className="opacity-70">
+            Every initiative, read straight from the contract{MULTI_CHAIN ? "s on each network" : ""}.
+          </p>
         </div>
         <Link href="/create" className="btn btn-primary">
           Start an initiative
@@ -273,6 +284,21 @@ const ExploreInner = () => {
             </button>
           ))}
         </div>
+
+        {MULTI_CHAIN && (
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Network">
+            <button className={chip(chain === "all")} onClick={() => setChain("all")}>
+              All networks
+            </button>
+            {POOL_CHAINS.map(c => (
+              <button key={c.id} className={chip(chain === c.id)} onClick={() => setChain(c.id)}>
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} aria-hidden="true" />
+                {c.label}
+                <span className="opacity-60">{listings.filter(l => l.chainId === c.id).length}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Status">
           {STATUS_FILTERS.map(f => (
@@ -406,7 +432,7 @@ const ExploreInner = () => {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {shown.map(l => (
-                <InitiativeCard key={l.id} item={l} compare={compareOn ? compareFor(l.id) : undefined} />
+                <InitiativeCard key={l.uid} item={l} compare={compareOn ? compareFor(l.uid) : undefined} />
               ))}
             </div>
           )}
@@ -431,7 +457,15 @@ const ExploreInner = () => {
               </button>
             )}
             {picked.length >= 2 ? (
-              <Link href={`/compare?ids=${picked.join(",")}`} className="btn btn-sm btn-primary">
+              <Link
+                href={`/compare?ids=${picked
+                  .map(u => {
+                    const [c, i] = u.split(":");
+                    return `${poolChain(Number(c))?.slug ?? c}-${i}`;
+                  })
+                  .join(",")}`}
+                className="btn btn-sm btn-primary"
+              >
                 Compare {picked.length}
               </Link>
             ) : (

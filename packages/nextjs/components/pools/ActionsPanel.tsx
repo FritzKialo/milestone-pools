@@ -43,7 +43,7 @@ export const ActionsPanel = ({ item, reviewers }: Props) => {
   const { address } = useAccount();
   const now = useNow(10_000);
   const id = BigInt(item.id);
-  const { writeContractAsync } = useScaffoldWriteContract({ contractName: "MilestonePools" });
+  const { writeContractAsync } = useScaffoldWriteContract({ contractName: "MilestonePools", chainId: item.chainId });
   const [busy, setBusy] = useState<string | null>(null);
   const [evidence, setEvidence] = useState("");
 
@@ -54,12 +54,14 @@ export const ActionsPanel = ({ item, reviewers }: Props) => {
   const { data: voted } = useScaffoldReadContract({
     contractName: "MilestonePools",
     functionName: "hasVoted",
+    chainId: item.chainId,
     args: [id, item.reviewNo, address],
     watch: true,
   });
   const { data: refundable } = useScaffoldReadContract({
     contractName: "MilestonePools",
     functionName: "refundableOf",
+    chainId: item.chainId,
     args: [id, address],
     watch: true,
   });

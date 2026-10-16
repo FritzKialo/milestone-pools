@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { ChainBadge } from "~~/components/pools/ChainBadge";
 import { CompareCheck, type CompareProps } from "~~/components/pools/CompareCheck";
 import { Cover } from "~~/components/pools/Cover";
 import { FundingBar } from "~~/components/pools/FundingBar";
 import { SaveButton } from "~~/components/pools/SaveButton";
 import { StatusBadge } from "~~/components/pools/StatusBadge";
+import { initiativePath } from "~~/lib/chains";
 import {
   CATEGORIES,
   type Listing,
@@ -24,11 +26,14 @@ export const InitiativeCard = ({ item, compare }: { item: Listing; compare?: Com
 
   return (
     <div className="surface card-link relative flex flex-col overflow-hidden">
-      <Link href={`/initiative/${item.id}`} className="flex flex-1 flex-col">
+      <Link href={initiativePath(item)} className="flex flex-1 flex-col">
         <Cover image={meta.image} category={item.category} />
         <div className="flex flex-1 flex-col gap-3 p-5">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm opacity-60">{CATEGORIES[item.category] ?? "Other"}</span>
+            <span className="flex min-w-0 items-center gap-2 text-sm opacity-60">
+              <span className="truncate">{CATEGORIES[item.category] ?? "Other"}</span>
+              <ChainBadge chainId={item.chainId} />
+            </span>
             <StatusBadge status={item.status} />
           </div>
           <h3 className="text-lg font-semibold leading-snug line-clamp-2">{meta.title}</h3>
@@ -69,7 +74,7 @@ export const InitiativeCard = ({ item, compare }: { item: Listing; compare?: Com
           </div>
         </div>
       </Link>
-      <SaveButton id={item.id} className="absolute right-3 top-3" />
+      <SaveButton uid={item.uid} className="absolute right-3 top-3" />
       {compare && <CompareCheck compare={compare} label={meta.title} className="absolute left-3 top-3 z-10" />}
     </div>
   );

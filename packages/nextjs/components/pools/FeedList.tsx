@@ -53,10 +53,7 @@ export const FeedList = ({ items, empty }: { items: FeedItem[]; empty: React.Rea
     <ul className="divide-y divide-base-300">
       {items.map(it => (
         <li key={it.key}>
-          <Link
-            href={`/initiative/${it.id}`}
-            className="flex items-center gap-3 py-2.5 text-sm hover:bg-base-200/40 sm:px-1"
-          >
+          <Link href={it.href} className="flex items-center gap-3 py-2.5 text-sm hover:bg-base-200/40 sm:px-1">
             <KindIcon kind={it.kind} />
             <span className="min-w-0 flex-1">{it.text}</span>
             <span className="hidden shrink-0 text-xs opacity-60 sm:block">{ago(it.time, now)}</span>

@@ -2,16 +2,18 @@
 
 import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { initiativePath } from "~~/lib/chains";
 import {
   type PoolEvent,
   TOKEN_SYMBOL,
+  blockKey,
   fmtAmount,
   loadMetadata,
   shortAddr,
+  useBlockTimes,
   useListings,
   usePoolEvents,
 } from "~~/lib/pools";
-import { useBlockTimes } from "~~/lib/stats";
 
 export type FeedKind = "created" | "funded" | "review" | "paid" | "finished" | "ended" | "refund" | "work";
 
@@ -36,22 +38,22 @@ export const kindOf = (eventName: string): FeedKind | undefined => KIND[eventNam
 export function useTitleMap() {
   const { listings } = useListings();
   const { data } = useQuery({
-    queryKey: ["title-map", listings.map(l => `${l.id}:${l.metadataURI.length}`).join(",")],
+    queryKey: ["title-map", listings.map(l => `${l.uid}:${l.metadataURI.length}`).join(",")],
     enabled: listings.length > 0,
     queryFn: async () => {
       const entries = await Promise.all(
-        listings.map(async l => [l.id, (await loadMetadata(l.metadataURI, `Initiative #${l.id}`)).title] as const),
+        listings.map(async l => [l.uid, (await loadMetadata(l.metadataURI, `Initiative #${l.id}`)).title] as const),
       );
-      return Object.fromEntries(entries) as Record<number, string>;
+      return Object.fromEntries(entries) as Record<string, string>;
     },
   });
-  return useCallback((id: number) => data?.[id] ?? `Initiative #${id}`, [data]);
+  return useCallback((uid: string) => data?.[uid] ?? `Initiative #${uid.split(":")[1]}`, [data]);
 }
 
 /** One plain-language line for a contract event. */
-export function describeEvent(e: PoolEvent, title: (id: number) => string): string {
+export function describeEvent(e: PoolEvent, title: (uid: string) => string): string {
   const a = e.args ?? {};
-  const name = title(Number(a.id));
+  const name = title(e.uid ?? "");
   const amt = (v: bigint) => `${fmtAmount(v)} ${TOKEN_SYMBOL}`;
   const m = Number(a.milestone) + 1;
   switch (e.eventName) {
@@ -84,7 +86,8 @@ export function describeEvent(e: PoolEvent, title: (id: number) => string): stri
 
 export type FeedItem = {
   key: string;
-  id: number;
+  /** Link to the initiative the event is about. */
+  href: string;
   kind: FeedKind;
   text: string;
   time: number;
@@ -97,31 +100,53 @@ export function useFeed(limit = 12, kinds?: FeedKind[], address?: string) {
   const kindKey = kinds?.join(",") ?? "";
   const who = address?.toLowerCase();
 
-  const picked = useMemo(() => {
+  // Block numbers cannot be compared across networks, so take the newest few of each network,
+  // look up their times, and then order the lot by time.
+  const candidates = useMemo(() => {
     const allowed = kindKey ? kindKey.split(",") : null;
-    return (events ?? [])
-      .filter(e => {
-        const k = KIND[e.eventName];
-        if (!k || (allowed && !allowed.includes(k))) return false;
-        if (!who) return true;
-        return Object.values(e.args ?? {}).some(v => typeof v === "string" && v.toLowerCase() === who);
-      })
-      .slice(-limit)
-      .reverse();
+    const perChain = new Map<number, PoolEvent[]>();
+    (events ?? []).forEach(e => {
+      const k = KIND[e.eventName];
+      if (!k || !e.uid || (allowed && !allowed.includes(k))) return;
+      if (who && !Object.values(e.args ?? {}).some(v => typeof v === "string" && v.toLowerCase() === who)) return;
+      const list = perChain.get(e.chainId) ?? [];
+      list.push(e);
+      perChain.set(e.chainId, list);
+    });
+    return Array.from(perChain.values()).flatMap(list => list.slice(-limit));
   }, [events, limit, kindKey, who]);
 
-  const { data: times } = useBlockTimes(useMemo(() => picked.map(e => e.blockNumber), [picked]));
+  const { data: times } = useBlockTimes(
+    useMemo(() => candidates.map(e => ({ chainId: e.chainId, block: e.blockNumber })), [candidates]),
+  );
 
   const items = useMemo<FeedItem[]>(
     () =>
-      picked.map(e => ({
-        key: `${e.transactionHash}-${e.logIndex}`,
-        id: Number(e.args?.id),
-        kind: KIND[e.eventName],
-        text: describeEvent(e, title),
-        time: times?.[e.blockNumber.toString()] ?? 0,
-      })),
-    [picked, title, times],
+      candidates
+        .map(e => ({
+          e,
+          time: times?.[blockKey(e.chainId, e.blockNumber)] ?? 0,
+        }))
+        .sort((x, y) =>
+          x.time !== y.time
+            ? y.time - x.time
+            : x.e.chainId !== y.e.chainId
+              ? x.e.chainId - y.e.chainId
+              : x.e.blockNumber === y.e.blockNumber
+                ? y.e.logIndex - x.e.logIndex
+                : x.e.blockNumber > y.e.blockNumber
+                  ? -1
+                  : 1,
+        )
+        .slice(0, limit)
+        .map(({ e, time }) => ({
+          key: `${e.chainId}-${e.transactionHash}-${e.logIndex}`,
+          href: initiativePath({ chainId: e.chainId, id: Number(e.args?.id) }),
+          kind: KIND[e.eventName],
+          text: describeEvent(e, title),
+          time,
+        })),
+    [candidates, title, times, limit],
   );
 
   return { items, isLoading };

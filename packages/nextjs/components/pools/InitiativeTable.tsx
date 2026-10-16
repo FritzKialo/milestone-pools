@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { ChainBadge } from "~~/components/pools/ChainBadge";
 import { CompareCheck, type CompareProps } from "~~/components/pools/CompareCheck";
 import { FundingBar } from "~~/components/pools/FundingBar";
 import { SaveButton } from "~~/components/pools/SaveButton";
 import { StatusBadge } from "~~/components/pools/StatusBadge";
+import { initiativePath } from "~~/lib/chains";
 import {
   CATEGORIES,
   type Listing,
@@ -37,7 +39,7 @@ const Row = ({ item, compare }: { item: Listing; compare?: CompareProps }) => {
   return (
     <li className={`${cols} relative transition-colors hover:bg-base-200/60`}>
       <div className="relative z-10 flex items-center gap-2">
-        <SaveButton id={item.id} />
+        <SaveButton uid={item.uid} />
         {compare && <CompareCheck compare={compare} label={meta.title} />}
       </div>
       <div className="hidden md:block">
@@ -45,13 +47,14 @@ const Row = ({ item, compare }: { item: Listing; compare?: CompareProps }) => {
       </div>
       <div className="min-w-0">
         <Link
-          href={`/initiative/${item.id}`}
+          href={initiativePath(item)}
           className="block truncate font-medium after:absolute after:inset-0 after:content-['']"
         >
           {meta.title}
         </Link>
         <div className="flex flex-wrap items-center gap-x-2 text-xs opacity-60">
           <span>{CATEGORIES[item.category] ?? "Other"}</span>
+          <ChainBadge chainId={item.chainId} />
           {item.isRfp && <span>Open call</span>}
           <span className="md:hidden">
             <StatusBadge status={item.status} />
@@ -93,7 +96,7 @@ export const InitiativeTable = ({
   compareFor,
 }: {
   items: Listing[];
-  compareFor?: (id: number) => CompareProps;
+  compareFor?: (uid: string) => CompareProps;
 }) => (
   <div className="surface overflow-hidden">
     <div
@@ -110,7 +113,7 @@ export const InitiativeTable = ({
     </div>
     <ul className="divide-y divide-base-300">
       {items.map(i => (
-        <Row key={i.id} item={i} compare={compareFor?.(i.id)} />
+        <Row key={i.uid} item={i} compare={compareFor?.(i.uid)} />
       ))}
     </ul>
   </div>

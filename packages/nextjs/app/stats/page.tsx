@@ -7,6 +7,7 @@ import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 import { BarList, type BarRow, ColumnChart, Donut, StepChart } from "~~/components/pools/Charts";
 import { FeedList } from "~~/components/pools/FeedList";
 import { Leaderboards } from "~~/components/pools/Leaderboards";
+import { MULTI_CHAIN, POOL_CHAINS, initiativePath } from "~~/lib/chains";
 import { downloadCsv } from "~~/lib/csv";
 import { type FeedKind, describeEvent, useFeed, useTitleMap } from "~~/lib/feed";
 import { CATEGORIES, STATUS, TOKEN_SYMBOL, fmtAmount, useListings, useNow, usePoolEvents } from "~~/lib/pools";
@@ -88,6 +89,16 @@ const Stats: NextPage = () => {
     .filter(r => r.value > 0)
     .sort((a, b) => b.value - a.value);
 
+  const networkRows: BarRow[] = POOL_CHAINS.map(c => {
+    const here = listings.filter(l => l.chainId === c.id);
+    const raised = here.reduce((s, l) => s + l.raised, 0n);
+    return {
+      label: c.label,
+      value: Number(raised),
+      display: `${fmtAmount(raised)} ${TOKEN_SYMBOL} in ${here.length} ${here.length === 1 ? "initiative" : "initiatives"}`,
+    };
+  });
+
   const statusRows: BarRow[] = STATUS.map(s => ({
     label: s === "Active" ? "In progress" : s === "Selecting" ? "Choosing grantee" : s,
     value: by(s),
@@ -99,16 +110,17 @@ const Stats: NextPage = () => {
     .filter(l => l.raised > 0n)
     .slice(0, 6)
     .map(l => ({
-      label: title(l.id),
+      label: title(l.uid),
       value: Number(l.raised),
       display: `${fmtAmount(l.raised)} ${TOKEN_SYMBOL}`,
-      href: `/initiative/${l.id}`,
+      href: initiativePath(l),
     }));
 
   const exportEvents = () =>
     downloadCsv("milestone-pools-events.csv", [
-      ["block", "transaction", "event", "initiative", "summary"],
+      ["network", "block", "transaction", "event", "initiative", "summary"],
       ...(events ?? []).map(e => [
+        POOL_CHAINS.find(c => c.id === e.chainId)?.label ?? e.chainId,
         e.blockNumber.toString(),
         e.transactionHash,
         e.eventName,
@@ -195,6 +207,11 @@ const Stats: NextPage = () => {
           </section>
 
           <section className="grid gap-6 md:grid-cols-2">
+            {MULTI_CHAIN && (
+              <Panel title="Raised by network" note="Each network has its own contract and its own funds.">
+                <BarList rows={networkRows} tone="bg-primary/75" empty="No initiatives yet." />
+              </Panel>
+            )}
             <Panel title="Initiatives by category">
               <BarList rows={categoryRows} tone="bg-primary/75" empty="No initiatives yet." />
             </Panel>

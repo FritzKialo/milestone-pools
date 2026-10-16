@@ -13,22 +13,54 @@ export type ScaffoldConfig = BaseConfig;
 
 export const DEFAULT_ALCHEMY_API_KEY = "IZYEU2cWBgnFmgiTAgpWD";
 
+/**
+ * Networks the site can run on. To add a network: add it here, deploy the contract there
+ * (`yarn deploy --network <name>`), and list its name in NEXT_PUBLIC_NETWORKS.
+ */
+const AVAILABLE: Record<string, chains.Chain> = {
+  sepolia: chains.sepolia,
+  base: chains.base,
+  arbitrum: chains.arbitrum,
+  optimism: chains.optimism,
+  hardhat: chains.hardhat,
+};
+
+/**
+ * Which networks are live on this site, as a comma separated list, for example "base,arbitrum,optimism".
+ * Do not mix test networks and real networks in one list: the demo text and test-token buttons assume all or none.
+ * The default is the Sepolia demo.
+ */
+const requested = (process.env.NEXT_PUBLIC_NETWORKS || "sepolia")
+  .split(",")
+  .map(s => s.trim().toLowerCase())
+  .filter(Boolean);
+
+const picked = requested.map(name => AVAILABLE[name]).filter((c): c is chains.Chain => !!c);
+
 const scaffoldConfig = {
   // The networks on which your DApp is live
-  targetNetworks:
-    process.env.NEXT_PUBLIC_NETWORK === "sepolia" ? ([chains.sepolia] as const) : ([chains.hardhat] as const),
-  // The interval at which your front-end polls the RPC servers for new data (it has no effect if you only target the local network (default is 4000))
-  pollingInterval: 3000,
+  // Typed with Sepolia first so contract names are inferred from the Sepolia deployment, whatever list is chosen above.
+  targetNetworks: (picked.length > 0 ? picked : [chains.sepolia]) as unknown as readonly [
+    typeof chains.sepolia,
+    ...chains.Chain[],
+  ],
+  // The interval at which your front-end polls the RPC servers for new data
+  pollingInterval: 4000,
   // This is ours Alchemy's default API key.
   // You can get your own at https://dashboard.alchemyapi.io
   // It's recommended to store it in an env variable:
   // .env.local for local testing, and in the Vercel/system env config for live apps.
   alchemyApiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || DEFAULT_ALCHEMY_API_KEY,
-  // If you want to use a different RPC for a specific network, you can add it here.
-  // The key is the chain ID, and the value is the HTTP RPC URL
-  rpcOverrides: {
-    [chains.sepolia.id]: "https://ethereum-sepolia-rpc.publicnode.com",
-  },
+  // Use your own RPC for a network (recommended for a real launch): set NEXT_PUBLIC_RPC_<chain id>, for example
+  // NEXT_PUBLIC_RPC_8453 for Base. The key is the chain ID, and the value is the HTTP RPC URL.
+  rpcOverrides: Object.fromEntries(
+    Object.entries({
+      [chains.sepolia.id]: process.env.NEXT_PUBLIC_RPC_11155111,
+      [chains.base.id]: process.env.NEXT_PUBLIC_RPC_8453,
+      [chains.arbitrum.id]: process.env.NEXT_PUBLIC_RPC_42161,
+      [chains.optimism.id]: process.env.NEXT_PUBLIC_RPC_10,
+    }).filter(([, url]) => !!url),
+  ) as Record<number, string>,
   // This is ours WalletConnect's default project ID.
   // You can get your own at https://cloud.walletconnect.com
   // It's recommended to store it in an env variable:

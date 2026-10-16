@@ -1,43 +1,18 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { usePublicClient } from "wagmi";
-import { useTargetNetwork } from "~~/hooks/scaffold-eth";
-import { DAY, type Listing, type PoolEvent, TOKEN_DECIMALS, usePoolEvents } from "~~/lib/pools";
+import {
+  DAY,
+  type Listing,
+  type PoolEvent,
+  TOKEN_DECIMALS,
+  blockKey,
+  byNewest,
+  useBlockTimes,
+  usePoolEvents,
+} from "~~/lib/pools";
 
-/* ----------------------------------------------------------------------------
- * Block timestamps, cached for the life of the page so each block is read once
- * ------------------------------------------------------------------------- */
-
-const blockTimes = new Map<string, number>();
-
-export function useBlockTimes(blocks: bigint[]) {
-  const { targetNetwork } = useTargetNetwork();
-  const client = usePublicClient({ chainId: targetNetwork.id });
-  const unique = useMemo(() => Array.from(new Set(blocks.map(b => b.toString()))), [blocks]);
-  const key = unique.join(",");
-
-  return useQuery({
-    queryKey: ["block-times", key],
-    enabled: !!client && unique.length > 0,
-    staleTime: Infinity,
-    queryFn: async () => {
-      const missing = unique.filter(b => !blockTimes.has(b));
-      for (let i = 0; i < missing.length; i += 20) {
-        await Promise.all(
-          missing.slice(i, i + 20).map(async b => {
-            const blk = await client!.getBlock({ blockNumber: BigInt(b) });
-            blockTimes.set(b, Number(blk.timestamp));
-          }),
-        );
-      }
-      const out: Record<string, number> = {};
-      unique.forEach(b => (out[b] = blockTimes.get(b) ?? 0));
-      return out;
-    },
-  });
-}
+export { useBlockTimes };
 
 /* ----------------------------------------------------------------------------
  * Contributions, with times
@@ -45,6 +20,8 @@ export function useBlockTimes(blocks: bigint[]) {
 
 export type Contribution = {
   id: number;
+  chainId: number;
+  uid: string;
   funder: `0x${string}`;
   amount: bigint;
   time: number;
@@ -55,7 +32,7 @@ export type Contribution = {
 export function useContributions() {
   const { data: events, isLoading: eventsLoading } = usePoolEvents();
   const raw = useMemo(() => (events ?? []).filter(e => e.eventName === "Contributed"), [events]);
-  const blocks = useMemo(() => raw.map(e => e.blockNumber), [raw]);
+  const blocks = useMemo(() => raw.map(e => ({ chainId: e.chainId, block: e.blockNumber })), [raw]);
   const { data: times, isLoading: timesLoading } = useBlockTimes(blocks);
 
   const data = useMemo<Contribution[]>(() => {
@@ -64,13 +41,15 @@ export function useContributions() {
     return raw
       .map(e => ({
         id: Number(e.args.id),
+        chainId: e.chainId,
+        uid: e.uid as string,
         funder: e.args.funder as `0x${string}`,
         amount: e.args.amount as bigint,
-        time: times[e.blockNumber.toString()] ?? 0,
+        time: times[blockKey(e.chainId, e.blockNumber)] ?? 0,
         block: e.blockNumber,
         logIndex: e.logIndex,
       }))
-      .sort((a, b) => (a.block === b.block ? a.logIndex - b.logIndex : a.block < b.block ? -1 : 1));
+      .sort((a, b) => a.time - b.time || (a.block === b.block ? a.logIndex - b.logIndex : a.block < b.block ? -1 : 1));
   }, [raw, times]);
 
   return { data, isLoading: eventsLoading || (raw.length > 0 && timesLoading) };
@@ -129,10 +108,10 @@ export function topReviewers(events: PoolEvent[] | undefined, listings: Listing[
 }
 
 export type Profile = {
-  backed: { id: number; total: bigint; count: number }[];
-  created: number[];
-  reviewing: { id: number; votes: number }[];
-  receiving: { id: number; paid: bigint }[];
+  backed: { uid: string; total: bigint; count: number }[];
+  created: Listing[];
+  reviewing: { uid: string; votes: number }[];
+  receiving: { uid: string; paid: bigint }[];
   totalBacked: bigint;
   totalReceived: bigint;
   votesCast: number;
@@ -144,38 +123,48 @@ export function buildProfile(
   contributions: Contribution[],
   events: PoolEvent[] | undefined,
 ): Profile {
-  const backedMap = new Map<number, { id: number; total: bigint; count: number }>();
+  const backedMap = new Map<string, { uid: string; total: bigint; count: number }>();
   contributions
     .filter(c => same(c.funder, address))
     .forEach(c => {
-      const cur = backedMap.get(c.id) ?? { id: c.id, total: 0n, count: 0 };
+      const cur = backedMap.get(c.uid) ?? { uid: c.uid, total: 0n, count: 0 };
       cur.total += c.amount;
       cur.count += 1;
-      backedMap.set(c.id, cur);
+      backedMap.set(c.uid, cur);
     });
-  const backed = Array.from(backedMap.values()).sort((a, b) => b.id - a.id);
+  const order = new Map(listings.map(l => [l.uid, l]));
+  const newest = (x: { uid: string }, y: { uid: string }) => {
+    const a = order.get(x.uid);
+    const b = order.get(y.uid);
+    return a && b ? byNewest(a, b) : 0;
+  };
+  const backed = Array.from(backedMap.values()).sort(newest);
 
-  const votes = new Map<number, number>();
+  const votes = new Map<string, number>();
   (events ?? [])
-    .filter(e => e.eventName === "ReviewVote" && same(e.args.reviewer, address))
-    .forEach(e => votes.set(Number(e.args.id), (votes.get(Number(e.args.id)) ?? 0) + 1));
+    .filter(e => e.eventName === "ReviewVote" && e.uid && same(e.args.reviewer, address))
+    .forEach(e => votes.set(e.uid as string, (votes.get(e.uid as string) ?? 0) + 1));
 
-  const paid = new Map<number, bigint>();
+  const paid = new Map<string, bigint>();
   (events ?? [])
-    .filter(e => e.eventName === "MilestoneApproved" && same(e.args.grantee, address))
-    .forEach(e => paid.set(Number(e.args.id), (paid.get(Number(e.args.id)) ?? 0n) + (e.args.amount as bigint)));
+    .filter(e => e.eventName === "MilestoneApproved" && e.uid && same(e.args.grantee, address))
+    .forEach(e => paid.set(e.uid as string, (paid.get(e.uid as string) ?? 0n) + (e.args.amount as bigint)));
 
-  const created = listings.filter(l => same(l.proposer, address)).map(l => l.id);
+  const created = listings.filter(l => same(l.proposer, address)).sort(byNewest);
   const reviewing = listings
     .filter(l => l.reviewers.some(r => same(r, address)))
-    .map(l => ({ id: l.id, votes: votes.get(l.id) ?? 0 }));
-  const receiving = listings.filter(l => same(l.grantee, address)).map(l => ({ id: l.id, paid: paid.get(l.id) ?? 0n }));
+    .sort(byNewest)
+    .map(l => ({ uid: l.uid, votes: votes.get(l.uid) ?? 0 }));
+  const receiving = listings
+    .filter(l => same(l.grantee, address))
+    .sort(byNewest)
+    .map(l => ({ uid: l.uid, paid: paid.get(l.uid) ?? 0n }));
 
   return {
     backed,
-    created: created.sort((a, b) => b - a),
-    reviewing: reviewing.sort((a, b) => b.id - a.id),
-    receiving: receiving.sort((a, b) => b.id - a.id),
+    created,
+    reviewing,
+    receiving,
     totalBacked: backed.reduce((s, b) => s + b.total, 0n),
     totalReceived: receiving.reduce((s, r) => s + r.paid, 0n),
     votesCast: Array.from(votes.values()).reduce((s, v) => s + v, 0),

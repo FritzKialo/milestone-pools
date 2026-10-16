@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatUnits, parseEventLogs, parseUnits } from "viem";
-import { usePublicClient, useReadContracts } from "wagmi";
-import { useDeployedContractInfo, useScaffoldReadContract, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { useConfig } from "wagmi";
+import { getPublicClient } from "wagmi/actions";
+import { POOL_CHAINS, type PoolChain, uidOf } from "~~/lib/chains";
 
 /* ----------------------------------------------------------------------------
  * Constants that mirror the contract
@@ -36,7 +37,12 @@ export const CATEGORIES = [
 ];
 
 export type Initiative = {
+  /** The initiative's number on its own network. */
   id: number;
+  /** The network it lives on. */
+  chainId: number;
+  /** Network and number together, for example "8453:12". Use this as the key. */
+  uid: string;
   token: `0x${string}`;
   grantee: `0x${string}`;
   proposer: `0x${string}`;
@@ -79,6 +85,8 @@ export const MAX_LINKS = 5;
 export const MAX_FAQ = 6;
 
 export type Listing = Initiative & {
+  /** Creation time (unix seconds), 0 until the block time has loaded. */
+  createdAt: number;
   category: number;
   metadataURI: string;
   reviewers: `0x${string}`[];
@@ -232,6 +240,9 @@ export function useNow(intervalMs = 15_000) {
 
 export type PoolEvent = {
   eventName: string;
+  chainId: number;
+  /** Network and initiative number, when the event is about one initiative. */
+  uid?: string;
 
   args: any;
   blockNumber: bigint;
@@ -239,44 +250,123 @@ export type PoolEvent = {
   transactionHash: string;
 };
 
+type ChainClient = NonNullable<ReturnType<typeof getPublicClient>>;
+
+/** Reads logs for a block range, splitting the range in half when a node refuses it as too large. */
+async function getLogsRange(client: ChainClient, address: `0x${string}`, from: bigint, to: bigint): Promise<any[]> {
+  try {
+    return await client.getLogs({ address, fromBlock: from, toBlock: to });
+  } catch (e) {
+    if (to - from < 2_000n) throw e;
+    const mid = from + (to - from) / 2n;
+    const a = await getLogsRange(client, address, from, mid);
+    const b = await getLogsRange(client, address, mid + 1n, to);
+    return [...a, ...b];
+  }
+}
+
+// Each network is scanned once from its deployment block, then only the newest blocks on every refresh.
+const eventCache = new Map<number, { events: PoolEvent[]; next: bigint }>();
+const REORG_BLOCKS = 12n;
+
+async function fetchChainEvents(config: any, c: PoolChain): Promise<PoolEvent[]> {
+  const client = getPublicClient(config, { chainId: c.id });
+  if (!client) throw new Error(`No connection to ${c.label}`);
+  const cached = eventCache.get(c.id) ?? { events: [], next: BigInt(c.pools.deployedOnBlock) };
+  const latest = await client.getBlockNumber();
+  const from = cached.events.length > 0 && cached.next > REORG_BLOCKS ? cached.next - REORG_BLOCKS : cached.next;
+  if (latest < from) return cached.events;
+
+  const logs = await getLogsRange(client, c.pools.address, from, latest);
+  const parsed = parseEventLogs({ abi: c.pools.abi as any, logs }) as any[];
+  const fresh: PoolEvent[] = parsed.map(l => ({
+    eventName: l.eventName as string,
+    chainId: c.id,
+    uid: l.args?.id !== undefined ? uidOf(c.id, l.args.id) : undefined,
+    args: l.args,
+    blockNumber: l.blockNumber as bigint,
+    logIndex: Number(l.logIndex),
+    transactionHash: l.transactionHash as string,
+  }));
+  const kept = cached.events.filter(e => e.blockNumber < from);
+  const events = [...kept, ...fresh];
+  eventCache.set(c.id, { events, next: latest + 1n });
+  return events;
+}
+
+/** Events from every network on the site, each marked with its network. Newest scan is shared by every page through the query cache. */
 export function usePoolEvents() {
-  const { data: info } = useDeployedContractInfo({ contractName: "MilestonePools" });
-  const { targetNetwork } = useTargetNetwork();
-  const client = usePublicClient({ chainId: targetNetwork.id });
+  const config = useConfig();
   return useQuery({
-    queryKey: ["pool-events", targetNetwork.id, info?.address],
-    enabled: !!info && !!client,
+    queryKey: ["pool-events", POOL_CHAINS.map(c => `${c.id}:${c.pools.address}`).join(",")],
+    enabled: POOL_CHAINS.length > 0,
     refetchInterval: 5000,
     queryFn: async (): Promise<PoolEvent[]> => {
-      if (!info || !client) return [];
-      const logs = await client.getLogs({
-        address: info.address,
-        fromBlock: BigInt(info.deployedOnBlock ?? 0),
-        toBlock: "latest",
+      const results = await Promise.allSettled(POOL_CHAINS.map(c => fetchChainEvents(config, c)));
+      const out: PoolEvent[] = [];
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled") out.push(...r.value);
+        else console.warn(`Could not read events on ${POOL_CHAINS[i].label}`, r.reason);
+        if (r.status !== "fulfilled") out.push(...(eventCache.get(POOL_CHAINS[i].id)?.events ?? []));
       });
-
-      const parsed = parseEventLogs({ abi: info.abi as any, logs }) as any[];
-      return parsed.map(l => ({
-        eventName: l.eventName as string,
-        args: l.args,
-        blockNumber: l.blockNumber as bigint,
-        logIndex: Number(l.logIndex),
-        transactionHash: l.transactionHash as string,
-      }));
+      if (out.length === 0 && results.every(r => r.status === "rejected"))
+        throw (results[0] as PromiseRejectedResult).reason;
+      return out;
     },
   });
 }
 
-export const eventsFor = (events: PoolEvent[] | undefined, name: string, id: number) =>
-  (events ?? []).filter(e => e.eventName === name && e.args?.id !== undefined && Number(e.args.id) === id);
+export const eventsFor = (events: PoolEvent[] | undefined, name: string, uid: string) =>
+  (events ?? []).filter(e => e.eventName === name && e.uid === uid);
+
+/* ----------------------------------------------------------------------------
+ * Block times, cached for the life of the page so each block is read once
+ * ------------------------------------------------------------------------- */
+
+const blockTimes = new Map<string, number>();
+
+export type BlockRef = { chainId: number; block: bigint };
+export const blockKey = (chainId: number, block: bigint) => `${chainId}:${block}`;
+
+/** Timestamps for blocks on any of the site's networks. The result is keyed by blockKey(chainId, block). */
+export function useBlockTimes(refs: BlockRef[]) {
+  const config = useConfig();
+  const unique = useMemo(() => Array.from(new Set(refs.map(r => blockKey(r.chainId, r.block)))), [refs]);
+  const key = unique.join(",");
+
+  return useQuery({
+    queryKey: ["block-times", key],
+    enabled: unique.length > 0,
+    staleTime: Infinity,
+    queryFn: async () => {
+      const missing = unique.filter(k => !blockTimes.has(k));
+      for (let i = 0; i < missing.length; i += 20) {
+        await Promise.all(
+          missing.slice(i, i + 20).map(async k => {
+            const [chainId, block] = k.split(":");
+            const client = getPublicClient(config, { chainId: Number(chainId) });
+            if (!client) return;
+            const blk = await client.getBlock({ blockNumber: BigInt(block) });
+            blockTimes.set(k, Number(blk.timestamp));
+          }),
+        );
+      }
+      const out: Record<string, number> = {};
+      unique.forEach(k => (out[k] = blockTimes.get(k) ?? 0));
+      return out;
+    },
+  });
+}
 
 /* ----------------------------------------------------------------------------
  * Data
  * ------------------------------------------------------------------------- */
 
-export function normalise(id: number, r: any): Initiative {
+export function normalise(chainId: number, id: number, r: any): Initiative {
   return {
     id,
+    chainId,
+    uid: uidOf(chainId, id),
     token: r.token,
     grantee: r.grantee,
     proposer: r.proposer,
@@ -303,60 +393,95 @@ export function normalise(id: number, r: any): Initiative {
   };
 }
 
-/** Every initiative with its on-chain state and the details emitted at creation. */
-export function useListings() {
-  const { data: pools } = useDeployedContractInfo({ contractName: "MilestonePools" });
-  const { data: count, isLoading: countLoading } = useScaffoldReadContract({
-    contractName: "MilestonePools",
-    functionName: "initiativeCount",
-    watch: true,
-  });
-  const n = Number(count ?? 0n);
-  const { targetNetwork } = useTargetNetwork();
+type RawInitiative = { chainId: number; id: number; raw: any };
 
+// The last good read of each network, so one slow node does not make its initiatives vanish.
+const lastReads = new Map<number, RawInitiative[]>();
+
+async function readChainInitiatives(config: any, c: PoolChain): Promise<RawInitiative[]> {
+  const client = getPublicClient(config, { chainId: c.id });
+  if (!client) throw new Error(`No connection to ${c.label}`);
+  const count = Number(
+    await client.readContract({ address: c.pools.address, abi: c.pools.abi, functionName: "initiativeCount" }),
+  );
+  const calls = Array.from({ length: count }, (_, k) => ({
+    address: c.pools.address,
+    abi: c.pools.abi,
+    functionName: "getInitiative" as const,
+    args: [BigInt(k + 1)] as const,
+  }));
+  let results: { status: string; result?: unknown }[];
+  try {
+    results = (await client.multicall({ contracts: calls as any, allowFailure: true })) as any;
+  } catch {
+    results = await Promise.all(
+      calls.map(call =>
+        client
+          .readContract(call as any)
+          .then(result => ({ status: "success", result }))
+          .catch(() => ({ status: "failure" })),
+      ),
+    );
+  }
+  const out: RawInitiative[] = [];
+  results.forEach((r, k) => {
+    if (r.status === "success") out.push({ chainId: c.id, id: k + 1, raw: r.result });
+  });
+  lastReads.set(c.id, out);
+  return out;
+}
+
+/** Every initiative on every network, with its on-chain state and the details emitted at creation. */
+export function useListings() {
+  const config = useConfig();
   const { data: events, isLoading: detailsLoading } = usePoolEvents();
 
-  const contracts = useMemo(
-    () =>
-      pools
-        ? Array.from({ length: n }, (_, k) => ({
-            chainId: targetNetwork.id,
-            address: pools.address,
-            abi: pools.abi,
-            functionName: "getInitiative" as const,
-            args: [BigInt(k + 1)] as const,
-          }))
-        : [],
-    [pools, n, targetNetwork.id],
-  );
-
-  const { data: reads, isLoading: readsLoading } = useReadContracts({
-    contracts: contracts as any,
-    query: { enabled: contracts.length > 0, refetchInterval: 4000 },
+  const { data: reads, isLoading: readsLoading } = useQuery({
+    queryKey: ["pool-listings", POOL_CHAINS.map(c => c.id).join(",")],
+    enabled: POOL_CHAINS.length > 0,
+    refetchInterval: 4000,
+    queryFn: async (): Promise<RawInitiative[]> => {
+      const results = await Promise.allSettled(POOL_CHAINS.map(c => readChainInitiatives(config, c)));
+      return results.flatMap((r, i) => {
+        if (r.status === "fulfilled") return r.value;
+        console.warn(`Could not read initiatives on ${POOL_CHAINS[i].label}`, r.reason);
+        return lastReads.get(POOL_CHAINS[i].id) ?? [];
+      });
+    },
   });
+
+  const createdRefs = useMemo<BlockRef[]>(
+    () =>
+      (events ?? [])
+        .filter(e => e.eventName === "InitiativeCreated")
+        .map(e => ({ chainId: e.chainId, block: e.blockNumber })),
+    [events],
+  );
+  const { data: times } = useBlockTimes(createdRefs);
 
   const listings = useMemo<Listing[]>(() => {
     if (!reads) return [];
-    const out: Listing[] = [];
-    reads.forEach((r, k) => {
-      if (r.status !== "success") return;
-      const id = k + 1;
-      const base = normalise(id, r.result);
-      const d = eventsFor(events, "InitiativeDetails", id)[0];
-      const c = eventsFor(events, "InitiativeCreated", id)[0];
-      out.push({
+    return reads.map(({ chainId, id, raw }) => {
+      const uid = uidOf(chainId, id);
+      const base = normalise(chainId, id, raw);
+      const d = eventsFor(events, "InitiativeDetails", uid)[0];
+      const c = eventsFor(events, "InitiativeCreated", uid)[0];
+      return {
         ...base,
+        createdAt: c ? (times?.[blockKey(chainId, c.blockNumber)] ?? 0) : 0,
         category: Number(c?.args.category ?? CATEGORIES.length - 1),
         metadataURI: (d?.args.metadataURI as string) ?? "",
         reviewers: ((d?.args.reviewers as `0x${string}`[]) ?? []) as `0x${string}`[],
         plan: ((d?.args.milestoneAmounts as bigint[]) ?? []) as bigint[],
-      });
+      };
     });
-    return out;
-  }, [reads, events]);
+  }, [reads, events, times]);
 
-  return { listings, isLoading: countLoading || detailsLoading || (n > 0 && readsLoading), count: n };
+  return { listings, isLoading: detailsLoading || readsLoading, count: listings.length };
 }
+
+/** Newest first. Falls back to the on-chain number when the creation time has not loaded yet. */
+export const byNewest = (a: Listing, b: Listing) => b.createdAt - a.createdAt || b.id - a.id || b.chainId - a.chainId;
 
 /* ----------------------------------------------------------------------------
  * Activity log for one initiative, built from the contract's events
@@ -370,31 +495,12 @@ export const safeLink = (uri: string): string | null => {
   return null;
 };
 
-export function useActivity(id: number) {
-  const { targetNetwork } = useTargetNetwork();
-  const client = usePublicClient({ chainId: targetNetwork.id });
+export function useActivity(uid: string) {
   const { data: events } = usePoolEvents();
-  const mine = useMemo(
-    () => (events ?? []).filter(e => e.args && e.args.id !== undefined && Number(e.args.id) === id),
-    [events, id],
+  const mine = useMemo(() => (events ?? []).filter(e => e.uid === uid), [events, uid]);
+  const { data: stamps } = useBlockTimes(
+    useMemo(() => mine.map(e => ({ chainId: e.chainId, block: e.blockNumber })), [mine]),
   );
-  const blockKey = Array.from(new Set(mine.map(e => e.blockNumber.toString()))).join(",");
-
-  const { data: stamps } = useQuery({
-    queryKey: ["pool-block-times", blockKey],
-    enabled: !!client && mine.length > 0,
-    staleTime: Infinity,
-    queryFn: async () => {
-      const out: Record<string, number> = {};
-      await Promise.all(
-        Array.from(new Set(mine.map(e => e.blockNumber))).map(async b => {
-          const blk = await client!.getBlock({ blockNumber: b });
-          out[b.toString()] = Number(blk.timestamp);
-        }),
-      );
-      return out;
-    },
-  });
 
   const data = useMemo<ActivityItem[]>(() => {
     const amt = (v: bigint) => `${fmtAmount(v)} ${TOKEN_SYMBOL}`;
@@ -456,7 +562,7 @@ export function useActivity(id: number) {
       if (text)
         items.push({
           key: `${l.transactionHash}-${l.logIndex}`,
-          time: stamps?.[l.blockNumber.toString()] ?? 0,
+          time: stamps?.[blockKey(l.chainId, l.blockNumber)] ?? 0,
           text,
           block: l.blockNumber,
           logIndex: l.logIndex,

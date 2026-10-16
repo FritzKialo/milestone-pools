@@ -3,13 +3,15 @@
 import { CheckIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
 import { useCopyToClipboard, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { poolChain } from "~~/lib/chains";
 import { shortAddr } from "~~/lib/pools";
 
 /** A wallet as a small avatar, a short address that opens the block explorer, and a labelled copy button. */
-export const AddressLine = ({ address }: { address: `0x${string}` }) => {
+/** Pass chainId so the link opens the explorer of the network the address is shown for. */
+export const AddressLine = ({ address, chainId }: { address: `0x${string}`; chainId?: number }) => {
   const { targetNetwork } = useTargetNetwork();
   const { copyToClipboard, isCopiedToClipboard } = useCopyToClipboard();
-  const explorer = targetNetwork.blockExplorers?.default.url;
+  const explorer = (poolChain(chainId)?.chain ?? targetNetwork).blockExplorers?.default.url;
 
   const label = <span className="font-mono">{shortAddr(address)}</span>;
 

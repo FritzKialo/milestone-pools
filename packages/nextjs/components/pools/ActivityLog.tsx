@@ -2,8 +2,8 @@
 
 import { fmtDateTime, useActivity } from "~~/lib/pools";
 
-export const ActivityLog = ({ id }: { id: number }) => {
-  const { data, isLoading } = useActivity(id);
+export const ActivityLog = ({ uid }: { uid: string }) => {
+  const { data, isLoading } = useActivity(uid);
   if (isLoading) return <span className="loading loading-spinner loading-sm" />;
   if (!data || data.length === 0) return <p className="text-sm opacity-70">Nothing has happened yet.</p>;
   return (

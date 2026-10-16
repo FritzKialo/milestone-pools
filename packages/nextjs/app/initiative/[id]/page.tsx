@@ -9,6 +9,7 @@ import { ActionsPanel } from "~~/components/pools/ActionsPanel";
 import { ActivityLog } from "~~/components/pools/ActivityLog";
 import { AddressLine } from "~~/components/pools/AddressLine";
 import { CalendarButton } from "~~/components/pools/CalendarButton";
+import { ChainBadge } from "~~/components/pools/ChainBadge";
 import { StepChart } from "~~/components/pools/Charts";
 import { ContractLink } from "~~/components/pools/ContractLink";
 import { ContributeBox } from "~~/components/pools/ContributeBox";
@@ -24,8 +25,9 @@ import { SaveButton } from "~~/components/pools/SaveButton";
 import { ShareButton } from "~~/components/pools/ShareButton";
 import { StatusBadge } from "~~/components/pools/StatusBadge";
 import { TopBackers } from "~~/components/pools/TopBackers";
-import { useDeployedContractInfo, useScaffoldReadContract, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
 import { buildChecks, describeRecord, reviewerRecords } from "~~/lib/analysis";
+import { DEFAULT_POOL_CHAIN, parseInitiativeRef, poolChain, uidOf } from "~~/lib/chains";
 import {
   CATEGORIES,
   REVIEW_PERIOD,
@@ -44,15 +46,19 @@ import { cumulative, topBackers, useContributions } from "~~/lib/stats";
 
 const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params }) => {
   const { id: idParam } = use(params);
-  const idNum = Number(idParam);
-  const valid = Number.isInteger(idNum) && idNum > 0;
-  const id = BigInt(valid ? idNum : 1);
+  const ref = parseInitiativeRef(idParam);
+  const valid = !!ref;
+  const idNum = ref?.id ?? 1;
+  const chainId = ref?.chainId ?? DEFAULT_POOL_CHAIN?.id ?? 0;
+  const uid = uidOf(chainId, idNum);
+  const pools = poolChain(chainId)?.pools;
+  const id = BigInt(idNum);
   const now = useNow(15_000);
 
-  const { data: pools } = useDeployedContractInfo({ contractName: "MilestonePools" });
   const { data: raw, isLoading } = useScaffoldReadContract({
     contractName: "MilestonePools",
     functionName: "getInitiative",
+    chainId,
     args: [id],
     watch: true,
     query: { enabled: valid },
@@ -60,6 +66,7 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
   const { data: plan } = useScaffoldReadContract({
     contractName: "MilestonePools",
     functionName: "getMilestoneAmounts",
+    chainId,
     args: [id],
     watch: true,
     query: { enabled: valid },
@@ -67,6 +74,7 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
   const { data: reviewersRaw } = useScaffoldReadContract({
     contractName: "MilestonePools",
     functionName: "getReviewers",
+    chainId,
     args: [id],
     query: { enabled: valid },
   });
@@ -74,22 +82,21 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
   const { data: allContributions } = useContributions();
 
   const reviewers = ((reviewersRaw as readonly `0x${string}`[] | undefined) ?? []) as `0x${string}`[];
-  const item = raw ? normalise(idNum, raw) : undefined;
-  const metadataURI = (eventsFor(events, "InitiativeDetails", idNum)[0]?.args.metadataURI as string | undefined) ?? "";
+  const item = raw ? normalise(chainId, idNum, raw) : undefined;
+  const metadataURI = (eventsFor(events, "InitiativeDetails", uid)[0]?.args.metadataURI as string | undefined) ?? "";
   const meta = useMetadata(metadataURI, idNum);
-  const category = Number(eventsFor(events, "InitiativeCreated", idNum)[0]?.args.category ?? CATEGORIES.length - 1);
+  const category = Number(eventsFor(events, "InitiativeCreated", uid)[0]?.args.category ?? CATEGORIES.length - 1);
 
-  const mine = useMemo(() => allContributions.filter(c => c.id === idNum), [allContributions, idNum]);
+  const mine = allContributions.filter(c => c.uid === uid);
   const series = useMemo(() => cumulative(mine), [mine]);
   const backers = useMemo(() => topBackers(mine, 5), [mine]);
   const records = useMemo(() => reviewerRecords(events), [events]);
 
   // Review progress per committee member for the open review.
-  const { targetNetwork } = useTargetNetwork();
   const { data: votes } = useReadContracts({
     contracts: (pools && item
       ? reviewers.map(r => ({
-          chainId: targetNetwork.id,
+          chainId,
           address: pools.address,
           abi: pools.abi,
           functionName: "hasVoted",
@@ -111,7 +118,7 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
   }
 
   const planArr = [...(plan as readonly bigint[])];
-  const evidence = eventsFor(events, "MilestoneSubmitted", idNum)
+  const evidence = eventsFor(events, "MilestoneSubmitted", uid)
     .filter(e => Number(e.args.milestone) === item.currentMilestone)
     .map(e => e.args.evidenceURI as string)
     .pop();
@@ -144,13 +151,14 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={item.status} />
             <span className="badge badge-ghost">{CATEGORIES[category] ?? "Other"}</span>
+            <ChainBadge chainId={chainId} className="rounded-full border border-base-300 px-2 py-1" />
             {item.isRfp && <span className="badge badge-outline">Open call</span>}
           </div>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <h1 className="max-w-3xl text-3xl font-bold leading-tight">{meta.title}</h1>
             <div className="flex gap-2">
               <CalendarButton item={item} title={meta.title} now={now} />
-              <SaveButton id={idNum} label />
+              <SaveButton uid={uid} label />
               <ShareButton />
             </div>
           </div>
@@ -158,16 +166,20 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
           <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
             <div className="flex items-center gap-2">
               <span className="opacity-60">Proposed by</span>
-              <AddressLine address={item.proposer} />
+              <AddressLine address={item.proposer} chainId={chainId} />
               <Link href={`/profile/${item.proposer}`} className="link opacity-70">
                 Profile
               </Link>
             </div>
             <div className="flex items-center gap-2">
               <span className="opacity-60">Grantee</span>
-              {item.isRfp ? <span>To be chosen by the committee</span> : <AddressLine address={item.grantee} />}
+              {item.isRfp ? (
+                <span>To be chosen by the committee</span>
+              ) : (
+                <AddressLine address={item.grantee} chainId={chainId} />
+              )}
             </div>
-            <ContractLink name="MilestonePools" label="Contract" className="text-sm" />
+            <ContractLink name="MilestonePools" label="Contract" chainId={chainId} className="text-sm" />
           </div>
         </div>
       </div>
@@ -246,7 +258,7 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
                 return (
                   <li key={r} className="flex items-center justify-between gap-3 p-3">
                     <div className="min-w-0 space-y-0.5">
-                      <AddressLine address={r} />
+                      <AddressLine address={r} chainId={chainId} />
                       <p className="pl-8 text-xs opacity-60">{describeRecord(records.get(r.toLowerCase()))}</p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -299,7 +311,7 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
 
           <section id="activity" className="scroll-mt-24 space-y-3">
             <h2 className="text-xl font-semibold">Activity</h2>
-            <ActivityLog id={idNum} />
+            <ActivityLog uid={uid} />
           </section>
         </div>
 

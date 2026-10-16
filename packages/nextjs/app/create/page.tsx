@@ -4,11 +4,13 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { NextPage } from "next";
 import { isAddress } from "viem";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
+import { ChainBadge } from "~~/components/pools/ChainBadge";
 import { Cover } from "~~/components/pools/Cover";
 import { FundingBar } from "~~/components/pools/FundingBar";
 import { Hint } from "~~/components/pools/Hint";
-import { useDeployedContractInfo, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { DEFAULT_POOL_CHAIN, MULTI_CHAIN, POOL_CHAINS, poolChain } from "~~/lib/chains";
 import {
   CATEGORIES,
   MAX_FAQ,
@@ -69,10 +71,24 @@ const CHECKLIST = [
 
 const Create: NextPage = () => {
   const router = useRouter();
-  const { address } = useAccount();
-  const { data: usdc } = useDeployedContractInfo({ contractName: "MockUSDC" });
-  const { data: pools } = useDeployedContractInfo({ contractName: "MilestonePools" });
-  const { writeContractAsync } = useScaffoldWriteContract({ contractName: "MilestonePools" });
+  const { address, chain: walletChain } = useAccount();
+  const [chainChoice, setChainChoice] = useState<number | null>(null);
+  // Start on the network the wallet is already on, when the site supports it.
+  const chainId = chainChoice ?? poolChain(walletChain?.id)?.id ?? DEFAULT_POOL_CHAIN?.id ?? 0;
+  const net = poolChain(chainId);
+  const usdc = net?.usdc;
+  const { writeContractAsync } = useScaffoldWriteContract({ contractName: "MilestonePools", chainId });
+
+  // The beta limit for one initiative on this network. Older deployments have no limit, so a failed read is ignored.
+  const { data: goalLimit } = useReadContract({
+    chainId,
+    address: net?.pools.address,
+    abi: net?.pools.abi,
+    functionName: "maxGoal",
+    args: usdc ? [usdc] : undefined,
+    query: { enabled: !!net && !!usdc },
+  });
+  const limit = typeof goalLimit === "bigint" ? goalLimit : undefined;
 
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
@@ -131,6 +147,10 @@ const Create: NextPage = () => {
     problems.push("Every milestone needs an amount above zero.");
   else if (amounts.some(x => x !== null && x * BigInt(Math.round(qualifyPct * 100)) < 10_000n))
     problems.push("A milestone is too small for the chosen minimum to proceed. Raise its amount or the percentage.");
+  if (limit !== undefined && goal > limit)
+    problems.push(
+      `This network is in beta and limits each initiative to ${fmtAmount(limit)} ${TOKEN_SYMBOL}. Lower the total to continue.`,
+    );
   if (kind === "grant") {
     if (!isAddress(grantee)) problems.push("Enter the grantee's wallet address.");
     else if (reviewers.some(r => r.toLowerCase() === grantee.toLowerCase()))
@@ -161,7 +181,7 @@ const Create: NextPage = () => {
         functionName: "createInitiative",
         args: [
           {
-            token: usdc.address,
+            token: usdc,
             grantee: kind === "rfp" ? ZERO_ADDRESS : (grantee as `0x${string}`),
             milestoneAmounts: amounts as bigint[],
             qualifyBps: Math.round(qualifyPct * 100),
@@ -203,6 +223,27 @@ const Create: NextPage = () => {
       <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-6">
           <Step n={1} title="The work">
+            {MULTI_CHAIN && (
+              <Field
+                label="Network"
+                hint="Where the funds are held. Backers need USDC on this network, and each network has its own fees and its own pool of funds."
+              >
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Network">
+                  {POOL_CHAINS.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`btn btn-sm ${chainId === c.id ? "btn-primary" : "border-base-300 bg-base-100"}`}
+                      aria-pressed={chainId === c.id}
+                      onClick={() => setChainChoice(c.id)}
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} aria-hidden="true" />
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            )}
             <Field label="Title">
               <input
                 className="input input-bordered w-full"
@@ -497,7 +538,7 @@ const Create: NextPage = () => {
           <div className="flex flex-wrap items-center gap-4">
             <button
               className="btn btn-primary btn-lg"
-              disabled={busy || problems.length > 0 || !usdc || !pools}
+              disabled={busy || problems.length > 0 || !usdc || !net}
               onClick={submit}
             >
               {busy ? <span className="loading loading-spinner" /> : "Create initiative"}
@@ -515,7 +556,10 @@ const Create: NextPage = () => {
               <Cover image={image.trim().startsWith("https://") ? image.trim() : undefined} category={category} />
               <div className="space-y-3 p-5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm opacity-60">{CATEGORIES[category]}</span>
+                  <span className="flex items-center gap-2 text-sm opacity-60">
+                    {CATEGORIES[category]}
+                    <ChainBadge chainId={chainId} />
+                  </span>
                   <span className="badge badge-soft badge-info gap-1.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-current" />
                     Funding

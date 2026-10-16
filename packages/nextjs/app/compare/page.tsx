@@ -4,8 +4,10 @@ import { Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { NextPage } from "next";
+import { ChainBadge } from "~~/components/pools/ChainBadge";
 import { FundingBar } from "~~/components/pools/FundingBar";
 import { StatusBadge } from "~~/components/pools/StatusBadge";
+import { MULTI_CHAIN, initiativePath, parseInitiativeRef, uidOf } from "~~/lib/chains";
 import {
   CATEGORIES,
   type Listing,
@@ -23,7 +25,7 @@ const Head = ({ item }: { item: Listing }) => {
   const meta = useMetadata(item.metadataURI, item.id);
   return (
     <div className="space-y-2">
-      <Link href={`/initiative/${item.id}`} className="block font-semibold leading-snug hover:text-primary">
+      <Link href={initiativePath(item)} className="block font-semibold leading-snug hover:text-primary">
         {meta.title}
       </Link>
       <StatusBadge status={item.status} />
@@ -34,6 +36,7 @@ const Head = ({ item }: { item: Listing }) => {
 type Row = { label: string; cell: (i: Listing, now: number) => React.ReactNode };
 
 const ROWS: Row[] = [
+  ...(MULTI_CHAIN ? [{ label: "Network", cell: (i: Listing) => <ChainBadge chainId={i.chainId} always /> }] : []),
   { label: "Category", cell: i => CATEGORIES[i.category] ?? "Other" },
   {
     label: "Raised",
@@ -132,12 +135,16 @@ const CompareInner = () => {
   const { listings, isLoading } = useListings();
   const now = useNow(30_000);
 
-  const ids = useMemo(() => {
-    const raw = (params.get("ids") ?? "").split(",").map(Number);
-    return Array.from(new Set(raw.filter(n => Number.isInteger(n) && n > 0))).slice(0, 3);
+  const uids = useMemo(() => {
+    const refs = (params.get("ids") ?? "")
+      .split(",")
+      .map(s => parseInitiativeRef(s.trim()))
+      .filter((r): r is { chainId: number; id: number } => !!r)
+      .map(r => uidOf(r.chainId, r.id));
+    return Array.from(new Set(refs)).slice(0, 3);
   }, [params]);
 
-  const items = ids.map(id => listings.find(l => l.id === id)).filter((l): l is Listing => !!l);
+  const items = uids.map(uid => listings.find(l => l.uid === uid)).filter((l): l is Listing => !!l);
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-10">
@@ -172,7 +179,7 @@ const CompareInner = () => {
                   <span className="sr-only">Detail</span>
                 </th>
                 {items.map(i => (
-                  <th key={i.id} scope="col" className="p-4 text-left font-normal">
+                  <th key={i.uid} scope="col" className="p-4 text-left font-normal">
                     <Head item={i} />
                   </th>
                 ))}
@@ -185,7 +192,7 @@ const CompareInner = () => {
                     {r.label}
                   </th>
                   {items.map(i => (
-                    <td key={i.id} className="p-4">
+                    <td key={i.uid} className="p-4">
                       {r.cell(i, now)}
                     </td>
                   ))}
@@ -196,8 +203,8 @@ const CompareInner = () => {
                   <span className="sr-only">Open</span>
                 </th>
                 {items.map(i => (
-                  <td key={i.id} className="p-4">
-                    <Link href={`/initiative/${i.id}`} className="btn btn-sm btn-primary">
+                  <td key={i.uid} className="p-4">
+                    <Link href={initiativePath(i)} className="btn btn-sm btn-primary">
                       Open
                     </Link>
                   </td>

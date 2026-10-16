@@ -23,28 +23,27 @@ export const LiveNotifier = () => {
   useEffect(() => {
     if (!events) return;
     if (seen.current === null) {
-      seen.current = new Set(events.map(e => `${e.transactionHash}-${e.logIndex}`));
+      seen.current = new Set(events.map(e => `${e.chainId}-${e.transactionHash}-${e.logIndex}`));
       return;
     }
     const me = address?.toLowerCase();
     for (const e of events) {
-      const key = `${e.transactionHash}-${e.logIndex}`;
+      const key = `${e.chainId}-${e.transactionHash}-${e.logIndex}`;
       if (seen.current.has(key)) continue;
       seen.current.add(key);
       if (!FEED_EVENTS.includes(e.eventName)) continue;
 
-      const id = Number(e.args?.id);
       const actor = (e.args?.funder ?? e.args?.reviewer ?? e.args?.proposer ?? e.args?.candidate) as string | undefined;
       if (me && actor?.toLowerCase() === me) continue;
 
-      const item = listings.find(l => l.id === id);
+      const item = listings.find(l => l.uid === e.uid);
       const involved =
         !!me &&
         !!item &&
         (item.proposer.toLowerCase() === me ||
           item.grantee.toLowerCase() === me ||
           item.reviewers.some(r => r.toLowerCase() === me));
-      if (!saved.includes(id) && !involved) continue;
+      if (!(e.uid && saved.includes(e.uid)) && !involved) continue;
 
       toast(describeEvent(e, title), {
         icon: <BellIcon className="h-5 w-5 text-primary" />,

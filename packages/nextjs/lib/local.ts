@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { DEFAULT_POOL_CHAIN, uidOf } from "~~/lib/chains";
 
 /**
  * Small per-browser conveniences (saved initiatives, dismissed hints).
@@ -50,15 +51,14 @@ function makeStore<T>(key: string, empty: T, valid: (v: unknown) => v is T): Sto
   return { get, set, subscribe };
 }
 
-const isNumberArray = (v: unknown): v is number[] => Array.isArray(v) && v.every(x => Number.isInteger(x));
 const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every(x => typeof x === "string");
 
 const isViewMode = (v: unknown): v is "cards" | "table" => v === "cards" || v === "table";
 
-const EMPTY_NUMBERS: number[] = [];
 const EMPTY_STRINGS: string[] = [];
 
-const savedStore = makeStore<number[]>("milestone-pools:saved", EMPTY_NUMBERS, isNumberArray);
+// Saved initiatives are stored as "chainId:id". The first version stored bare numbers, read here as the first network.
+const savedStore = makeStore<string[]>("milestone-pools:saved", EMPTY_STRINGS, isStringArray);
 const dismissedStore = makeStore<string[]>("milestone-pools:dismissed", EMPTY_STRINGS, isStringArray);
 
 const viewStore = makeStore<"cards" | "table">("milestone-pools:view", "cards", isViewMode);
@@ -70,14 +70,20 @@ export function useViewMode() {
   return { view, setView };
 }
 
-/** Initiatives the visitor starred, kept in this browser only. */
+/** Initiatives the visitor starred, kept in this browser only. Each is identified by its uid, for example "8453:12". */
 export function useWatchlist() {
-  const saved = useSyncExternalStore(savedStore.subscribe, savedStore.get, () => EMPTY_NUMBERS);
-  const toggle = useCallback((id: number) => {
+  const stored = useSyncExternalStore(savedStore.subscribe, savedStore.get, () => EMPTY_STRINGS);
+  const saved = useMemo(
+    () => stored.map(x => (/^\d+$/.test(x) && DEFAULT_POOL_CHAIN ? uidOf(DEFAULT_POOL_CHAIN.id, Number(x)) : x)),
+    [stored],
+  );
+  const toggle = useCallback((uid: string) => {
     const cur = savedStore.get();
-    savedStore.set(cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]);
+    const legacy = DEFAULT_POOL_CHAIN && uid.startsWith(`${DEFAULT_POOL_CHAIN.id}:`) ? uid.split(":")[1] : null;
+    const has = cur.includes(uid) || (legacy !== null && cur.includes(legacy));
+    savedStore.set(has ? cur.filter(x => x !== uid && x !== legacy) : [...cur, uid]);
   }, []);
-  return { saved, isSaved: (id: number) => saved.includes(id), toggle };
+  return { saved, isSaved: (uid: string) => saved.includes(uid), toggle };
 }
 
 /** A hint or banner the visitor closed. Starts as dismissed on the server to avoid a flash. */

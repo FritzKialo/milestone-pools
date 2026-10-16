@@ -101,12 +101,12 @@ const Home: NextPage = () => {
 
   const trending = useMemo(() => {
     const since = now - 7 * DAY;
-    const counts = new Map<number, number>();
-    contributions.filter(c => c.time >= since).forEach(c => counts.set(c.id, (counts.get(c.id) ?? 0) + 1));
-    const shownAbove = new Set(closingSoon.map(l => l.id));
+    const counts = new Map<string, number>();
+    contributions.filter(c => c.time >= since).forEach(c => counts.set(c.uid, (counts.get(c.uid) ?? 0) + 1));
+    const shownAbove = new Set(closingSoon.map(l => l.uid));
     return listings
-      .filter(l => counts.has(l.id) && !shownAbove.has(l.id))
-      .sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
+      .filter(l => counts.has(l.uid) && !shownAbove.has(l.uid))
+      .sort((a, b) => (counts.get(b.uid) ?? 0) - (counts.get(a.uid) ?? 0))
       .slice(0, 3);
   }, [contributions, listings, now, closingSoon]);
 
@@ -287,7 +287,7 @@ const Home: NextPage = () => {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {closingSoon.map(l => (
-              <InitiativeCard key={l.id} item={l} />
+              <InitiativeCard key={l.uid} item={l} />
             ))}
           </div>
         </section>
@@ -298,7 +298,7 @@ const Home: NextPage = () => {
           <h2 className="text-2xl font-semibold">Trending this week</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {trending.map(l => (
-              <InitiativeCard key={l.id} item={l} />
+              <InitiativeCard key={l.uid} item={l} />
             ))}
           </div>
         </section>

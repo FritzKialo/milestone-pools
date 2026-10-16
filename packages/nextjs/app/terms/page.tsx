@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { NextPage } from "next";
+import { MULTI_CHAIN } from "~~/lib/chains";
 import { IS_TESTNET } from "~~/lib/site";
 
 export const metadata = { title: "Terms & Risks" };
 
-const VERSION = "1.0";
-const UPDATED = "15 October 2026";
+const VERSION = "1.1";
+const UPDATED = "16 October 2026";
 
 const Section = ({ id, title, children }: { id: string; title: string; children: React.ReactNode }) => (
   <section id={id} className="space-y-3 scroll-mt-24">
@@ -143,6 +144,27 @@ const Terms: NextPage = () => (
           pooled money is affected. Tokens that take a fee on transfer are rejected, but other unusual token behaviour
           could still cause problems.
         </Risk>
+        {!IS_TESTNET && (
+          <Risk title="USDC can be frozen by its issuer">
+            The token is USDC, issued by Circle. Circle can block individual addresses and can pause the token. If an
+            address is blocked, it cannot send or receive USDC, including from these contracts. If the contract&apos;s
+            own address were blocked, the funds in it would be stuck. Nobody running this site can undo that.
+          </Risk>
+        )}
+        {MULTI_CHAIN && (
+          <Risk title="Each network is separate">
+            Every network has its own contract, its own funds and its own risks. Funds on one network cannot be used on
+            another. A network can have outages, delays or reorganisations, and a transaction can take longer or fail
+            while it is unstable. Choose the network knowingly.
+          </Risk>
+        )}
+        {!IS_TESTNET && (
+          <Risk title="Beta limits">
+            The contracts are in a limited beta. Each has a cap on the size of a single initiative and on the total it
+            may hold. The limits are fixed in the contract and exist to keep the possible loss small. They are not a
+            guarantee of safety.
+          </Risk>
+        )}
         <Risk title="Mistakes are permanent">
           Blockchain transactions cannot be reversed. Sending funds with the wrong address, losing your wallet keys or
           approving the wrong amount cannot be undone by anyone. Check addresses carefully, and in particular the

@@ -9,7 +9,7 @@ export const CalendarButton = ({ item, title, now }: { item: Initiative; title: 
   const reminders: Reminder[] = [];
   const add = (kind: string, label: string, description: string, start: number) => {
     if (start > now)
-      reminders.push({ uid: `${item.id}-${kind}-${start}`, title: `${label}: ${title}`, description, start });
+      reminders.push({ uid: `${item.uid}-${kind}-${start}`, title: `${label}: ${title}`, description, start });
   };
 
   if (item.status === "Funding")
@@ -47,7 +47,7 @@ export const CalendarButton = ({ item, title, now }: { item: Initiative; title: 
     <button
       type="button"
       className="btn btn-sm gap-1.5 border-base-300 bg-base-100"
-      onClick={() => downloadIcs(`milestone-pools-${item.id}.ics`, reminders, window.location.href)}
+      onClick={() => downloadIcs(`milestone-pools-${item.chainId}-${item.id}.ics`, reminders, window.location.href)}
       title="Download a calendar file with reminders a day and an hour before"
     >
       <CalendarDaysIcon className="h-4 w-4" />

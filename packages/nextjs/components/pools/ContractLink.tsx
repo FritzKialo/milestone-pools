@@ -1,33 +1,42 @@
 "use client";
 
 import { ArrowUpRightIcon, CheckBadgeIcon } from "@heroicons/react/24/solid";
-import { useDeployedContractInfo, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { DEFAULT_POOL_CHAIN, poolChain } from "~~/lib/chains";
 import { shortAddr } from "~~/lib/pools";
 import { VERIFIED_CHAIN_IDS } from "~~/lib/site";
 
-/** A deployed contract's address, linked to the block explorer, with a note when its source is verified there. */
+/**
+ * A contract's address on one network, linked to that network's block explorer, with a note when its source is
+ * verified there. Pass chainId for a specific network; otherwise the first network on the site is used.
+ */
 export const ContractLink = ({
   name,
   label,
+  chainId,
   className = "",
 }: {
-  name: "MilestonePools" | "MockUSDC";
+  name: "MilestonePools" | "USDC";
   label: string;
+  chainId?: number;
   className?: string;
 }) => {
   const { targetNetwork } = useTargetNetwork();
-  const { data } = useDeployedContractInfo({ contractName: name });
-  if (!data) return null;
+  const net = poolChain(chainId ?? targetNetwork.id) ?? DEFAULT_POOL_CHAIN;
+  const address = name === "MilestonePools" ? net?.pools.address : net?.usdc;
+  if (!net || !address) return null;
 
-  const explorer = targetNetwork.blockExplorers?.default;
-  const verified = !!explorer && VERIFIED_CHAIN_IDS.includes(targetNetwork.id);
+  const explorer = net.explorerUrl
+    ? { url: net.explorerUrl, name: net.explorerName ?? "the block explorer" }
+    : undefined;
+  const verified = name === "MilestonePools" && !!explorer && VERIFIED_CHAIN_IDS.includes(net.id);
 
   if (!explorer) {
     return (
       <span className={`inline-flex flex-wrap items-center gap-x-2 ${className}`}>
         <span className="opacity-60">{label}</span>
-        <span className="font-mono" title={data.address}>
-          {shortAddr(data.address)}
+        <span className="font-mono" title={address}>
+          {shortAddr(address)}
         </span>
         <span className="opacity-60">(local test chain)</span>
       </span>
@@ -38,13 +47,13 @@ export const ContractLink = ({
     <span className={`inline-flex flex-wrap items-center gap-x-2 gap-y-1 ${className}`}>
       <span className="opacity-60">{label}</span>
       <a
-        href={`${explorer.url}/address/${data.address}${verified ? "#code" : ""}`}
+        href={`${explorer.url}/address/${address}${verified ? "#code" : ""}`}
         target="_blank"
         rel="noreferrer noopener"
         className="inline-flex items-center gap-1 font-mono hover:text-primary"
-        title={data.address}
+        title={address}
       >
-        {shortAddr(data.address)}
+        {shortAddr(address)}
         <ArrowUpRightIcon className="h-3 w-3" aria-hidden="true" />
         <span className="sr-only">on {explorer.name}</span>
       </a>

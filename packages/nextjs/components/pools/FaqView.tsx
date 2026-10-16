@@ -13,6 +13,7 @@ import {
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import { FaqList } from "~~/components/pools/FaqList";
+import { MULTI_CHAIN } from "~~/lib/chains";
 import {
   DAY,
   MAX_MILESTONES,
@@ -166,9 +167,27 @@ const GROUPS: Group[] = [
       {
         q: "Which network is this on?",
         a: IS_TESTNET
-          ? `The live demo runs on ${NETWORK_NAME}, an Ethereum test network where nothing has real value. You can browse from any network, but sending a transaction needs your wallet on ${NETWORK_NAME}.`
-          : `The site runs on ${NETWORK_NAME}. You can browse from any network, but sending a transaction needs your wallet on ${NETWORK_NAME}.`,
+          ? `The live demo runs on ${NETWORK_NAME}, where nothing has real value. You can browse without connecting a wallet. When you send a transaction, your wallet is asked to switch to ${NETWORK_NAME} if it is on another network.`
+          : MULTI_CHAIN
+            ? `The site runs on ${NETWORK_NAME}. Each initiative lives on one of them and its funds stay there. You can browse everything without a wallet. When you contribute, vote or withdraw, your wallet is asked to switch to that initiative's network.`
+            : `The site runs on ${NETWORK_NAME}. You can browse without connecting a wallet. When you send a transaction, your wallet is asked to switch to ${NETWORK_NAME} if it is on another network.`,
       },
+      ...(MULTI_CHAIN
+        ? [
+            {
+              q: "Can I use funds from one network on another?",
+              a: "No. Each network has its own contract and its own USDC. USDC on Base cannot pay an initiative on Arbitrum. Bridge or send USDC to the right network first, and keep a little ETH there for fees.",
+            },
+          ]
+        : []),
+      ...(IS_TESTNET
+        ? []
+        : [
+            {
+              q: "Why is there a limit on goals and on total deposits?",
+              a: "The contracts are new and not yet independently audited, so each one has two limits fixed when it was deployed: the largest goal a single initiative can set, and the most the contract may hold in total. They keep the possible loss small while the software proves itself. The limits cannot be changed. Raising them means a new contract, and that would come after an independent audit.",
+            },
+          ]),
       {
         q: "Which wallets work?",
         a: "Most popular Ethereum wallets, including browser extensions such as MetaMask and mobile wallets that use WalletConnect.",
@@ -223,7 +242,7 @@ const GROUPS: Group[] = [
       },
       {
         q: "The site keeps asking me to switch network.",
-        a: "Use the network button in the header, or switch inside your wallet, to the network the site shows. Contributions cannot be made from any other network.",
+        a: "When you act on an initiative, your wallet is asked to switch to the network it lives on. Approve the switch in your wallet and try again. If you decline, nothing is sent.",
       },
       {
         q: "The page looks empty or out of date.",
