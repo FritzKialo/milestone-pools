@@ -5,7 +5,7 @@ Pooled funding that pays out milestone by milestone. Backers put USDC into a sha
 There is no owner, no admin key, no pause switch and no upgrade path. Nobody, including the deployer, can move funds except through the rules below.
 
 - Live demo: [pools.frenkia.com](https://pools.frenkia.com) (Sepolia test network; connect a wallet set to Sepolia)
-- Live contract on Sepolia: [`0x7f3d99ac9a6030c7801de1ab463ea8c27a2dc28a`](https://sepolia.etherscan.io/address/0x7f3d99ac9a6030c7801de1ab463ea8c27a2dc28a#code) (source verified)
+- Live contract on Sepolia: [`0x50ad6c7e2f6c1598ccd35a3e0194abd71a470fab`](https://sepolia.etherscan.io/address/0x50ad6c7e2f6c1598ccd35a3e0194abd71a470fab#code) (source verified)
 - Test USDC on Sepolia: [`0xa24e43dd2796d2baced76504baaab1107f10c6e4`](https://sepolia.etherscan.io/address/0xa24e43dd2796d2baced76504baaab1107f10c6e4#code) (free to mint, no value)
 
 > **Status: unaudited, testnet only.** This is a portfolio and learning project. Do not put real funds into it. See [the threat model](docs/THREAT_MODEL.md) for what it protects against and what it cannot.

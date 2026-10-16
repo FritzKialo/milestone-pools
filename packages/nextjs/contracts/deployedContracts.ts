@@ -1772,7 +1772,7 @@ const deployedContracts = {
   },
   11155111: {
     MilestonePools: {
-      address: "0x7f3d99ac9a6030c7801de1ab463ea8c27a2dc28a",
+      address: "0x50ad6c7e2f6c1598ccd35a3e0194abd71a470fab",
       abi: [
         {
           inputs: [
@@ -3178,7 +3178,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11922654,
+      deployedOnBlock: 11928946,
     },
     MockUSDC: {
       address: "0xa24e43dd2796d2baced76504baaab1107f10c6e4",
