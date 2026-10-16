@@ -1,82 +1,122 @@
-﻿# ðŸ— Scaffold-ETH 2
+# Milestone Pools
 
-<h4 align="center">
-  <a href="https://docs.scaffoldeth.io">Documentation</a> |
-  <a href="https://scaffoldeth.io">Website</a>
-</h4>
+Pooled funding that pays out milestone by milestone. Backers put USDC into a shared pool for an initiative. If enough is raised, the money is released to the person doing the work only as a fixed review committee approves each milestone. If the goal is missed or the work stalls, whatever has not been paid out goes back to the backers in proportion to what each of them put in.
 
-ðŸ§ª An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Ethereum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
+There is no owner, no admin key, no pause switch and no upgrade path. Nobody, including the deployer, can move funds except through the rules below.
 
-> [!NOTE]
+- Live contract on Sepolia: [`0x7f3d99ac9a6030c7801de1ab463ea8c27a2dc28a`](https://sepolia.etherscan.io/address/0x7f3d99ac9a6030c7801de1ab463ea8c27a2dc28a#code) (source verified)
+- Test USDC on Sepolia: [`0xa24e43dd2796d2baced76504baaab1107f10c6e4`](https://sepolia.etherscan.io/address/0xa24e43dd2796d2baced76504baaab1107f10c6e4#code) (free to mint, no value)
 
-âš™ï¸ Built using NextJS, RainbowKit, Hardhat, Wagmi, Viem, and Typescript.
+> **Status: unaudited, testnet only.** This is a portfolio and learning project. Do not put real funds into it. See [the threat model](docs/THREAT_MODEL.md) for what it protects against and what it cannot.
 
-- âœ… **Contract Hot Reload**: Your frontend auto-adapts to your smart contract as you edit it.
-- ðŸª **[Custom hooks](https://docs.scaffoldeth.io/hooks/)**: Collection of React hooks wrapper around [wagmi](https://wagmi.sh/) to simplify interactions with smart contracts with typescript autocompletion.
-- ðŸ§± [**Components**](https://docs.scaffoldeth.io/components/): Collection of common web3 components to quickly build your frontend.
-- ðŸ”¥ **Burner Wallet & Local Faucet**: Quickly test your application with a burner wallet and local faucet.
-- ðŸ” **Integration with Wallet Providers**: Connect to different wallet providers and interact with the Ethereum network.
+## How it works
 
-![Debug Contracts tab](https://github.com/scaffold-eth/scaffold-eth-2/assets/55535804/b237af0c-5027-4849-a5c1-2e31495cccb1)
+1. **Create.** Someone proposes an initiative: a funding goal split into 1 to 10 milestones, a funding period of 1 to 90 days, a minimum share of the goal needed to go ahead, a grantee (or an open call, see below), and a review committee of 3 to 9 wallets with an approval threshold. The committee is fixed at creation and can never be changed.
+2. **Fund.** Anyone can contribute test USDC until the deadline. If the goal is reached, the initiative starts immediately.
+3. **Settle.** If the deadline passes below the goal but above the minimum, anyone can start it with every milestone scaled down in proportion to what was raised. Below the minimum, it fails and everyone can claim a full refund.
+4. **Deliver.** The grantee submits evidence (a link) for the current milestone. The committee has 14 days to vote. When the approvals reach the threshold, the milestone's amount is credited to the grantee, who withdraws it.
+5. **Reject or stall.** If too many reviewers reject, or the committee stays silent for 14 days, that round is used up. A milestone gets at most 3 rounds, after which the initiative fails. If the grantee submits nothing for 60 days, anyone can cancel it.
+6. **Refund.** On failure or cancellation, each backer can claim `contribution × unspent pool ÷ total raised`. Money already paid out for approved milestones stays paid.
 
-## Requirements
+### Open calls
 
-Before you begin, you need to install the following tools:
+A proposer can leave the grantee empty. Once the goal is met, the committee has 30 days to vote for a grantee. Candidates can announce interest on-chain, and the first candidate to reach the approval threshold is selected. If nobody is chosen in time, everyone is refunded.
 
-- [Node (>= v20.18.3)](https://nodejs.org/en/download/)
-- Yarn ([v1](https://classic.yarnpkg.com/en/docs/install/) or [v2+](https://yarnpkg.com/getting-started/install))
-- [Git](https://git-scm.com/downloads)
+## What the contract guarantees, and what it does not
 
-## Quickstart
+It enforces who can move money and when. Committee members can release a milestone to the named grantee or let funds return to backers. They can never send funds to themselves or a third party.
 
-To get started with Scaffold-ETH 2, follow the steps below:
+It cannot judge whether the work is good. A committee majority that works with the grantee can approve work that was not done. That is why the app shows the committee, each reviewer's track record, and a plain list of facts before anyone contributes. Read the committee before you contribute.
 
-1. Install dependencies if it was skipped in CLI:
+Other properties worth knowing:
 
-```
-cd my-dapp-example
+- Payouts are pull-based: approved milestones credit the grantee, who withdraws.
+- A global counter tracks everything the contract owes per token, and a randomized test checks after every step that the contract's balance covers it.
+- Fee-on-transfer tokens are rejected, and the token allowlist is fixed at deployment.
+- Refund shares round down, so a few units of rounding dust can remain in the contract. They stay accounted for.
+
+## Fixed parameters
+
+| Rule | Value |
+|---|---|
+| Milestones per initiative | 1 to 10 |
+| Review committee | 3 to 9 wallets, strict majority threshold |
+| Funding period | 1 to 90 days |
+| Minimum share to go ahead | at least 10% of the goal |
+| Review window | 14 days |
+| Submission window before cancellation | 60 days |
+| Grantee selection (open calls) | 30 days |
+| Review rounds per milestone | 3 |
+| Protocol fee | none |
+| Minimum contribution | 1 USDC |
+
+## The app
+
+A Next.js front end reads everything straight from the contract. There is no backend and no database.
+
+- **Explore:** search, filters, saved items, card and table views, CSV export, and a side-by-side compare view for up to three initiatives.
+- **Initiative page:** milestone timeline, committee with each reviewer's voting record, a "Before you contribute" panel of facts read from the contract, a payout and refund simulator, calendar reminders, share cards, and the full activity log.
+- **My activity and profiles:** what a wallet has backed, created, reviewed and can withdraw or claim.
+- **Stats and leaderboards:** totals, funding over time, top backers and most active reviewers, plus a live activity feed.
+- **Help:** FAQ, Terms and Risks, and a Support page.
+
+## Run it locally
+
+You need Node 20.18.3 or newer, Yarn, and Git.
+
+```bash
+git clone <this repository>
+cd milestone-pools
 yarn install
 ```
 
-2. Run a local network in the first terminal:
+In three terminals:
 
-```
-yarn chain
-```
-
-This command starts a local Ethereum network using Hardhat. The network runs on your local machine and can be used for testing and development. You can customize the network configuration in `packages/hardhat/hardhat.config.ts`.
-
-3. On a second terminal, deploy the test contract:
-
-```
-yarn deploy
+```bash
+yarn chain     # local test chain
+yarn deploy    # deploys test USDC and MilestonePools to it
+yarn start     # app at http://localhost:3000
 ```
 
-This command deploys a test smart contract to the local network. The contract is located in `packages/hardhat/contracts` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/hardhat/deploy` to deploy the contract to the network. You can also customize the deploy script.
+On the local chain the app offers a built-in burner wallet and a faucet, so no browser wallet is needed.
 
-4. On a third terminal, start your NextJS app:
+### Tests
+
+```bash
+yarn test
+```
+
+76 tests run: 51 unit tests (creation, contributions, settling, open calls, milestone delivery, cancellation, refund rounding, reentrancy, views) and 25 randomized invariant runs that check balance and accounting after every step.
+
+### Other checks
+
+```bash
+yarn next:check-types
+yarn next:lint
+yarn format
+```
+
+## Project layout
 
 ```
-yarn start
+packages/
+  hardhat/   contracts, deploy scripts and tests
+  nextjs/    the web app (app router, components, hooks, lib)
+docs/        threat model
 ```
 
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page. You can tweak the app config in `packages/nextjs/scaffold.config.ts`.
-
-Run smart contract test with `yarn hardhat:test`
-
-- Edit your smart contracts in `packages/hardhat/contracts`
-- Edit your frontend homepage at `packages/nextjs/app/page.tsx`. For guidance on [routing](https://nextjs.org/docs/app/building-your-application/routing/defining-routes) and configuring [pages/layouts](https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts) checkout the Next.js documentation.
-- Edit your deployment scripts in `packages/hardhat/deploy`
-
+The contract is `packages/hardhat/contracts/MilestonePools.sol`. The deploy script also deploys a mintable test USDC, which is for test networks only. A real deployment would pass real token addresses to the constructor.
 
 ## Documentation
 
-Visit our [docs](https://docs.scaffoldeth.io) to learn how to start building with Scaffold-ETH 2.
+- [Threat model](docs/THREAT_MODEL.md)
+- [Changelog](CHANGELOG.md)
+- [Security and support](SECURITY.md)
 
-To know more about its features, check out our [website](https://scaffoldeth.io).
+## Built with
 
-## Contributing to Scaffold-ETH 2
+Solidity, Hardhat, OpenZeppelin, Next.js, React, wagmi, viem, RainbowKit, Tailwind and daisyUI, on top of the Scaffold-ETH 2 starter.
 
-We welcome contributions to Scaffold-ETH 2!
+## License
 
-Please see [CONTRIBUTING.MD](https://github.com/scaffold-eth/scaffold-eth-2/blob/main/CONTRIBUTING.md) for more information and guidelines for contributing to Scaffold-ETH 2.
+MIT. The starter code is MIT licensed by BuidlGuidl; see [LICENCE](LICENCE).
