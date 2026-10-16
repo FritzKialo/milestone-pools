@@ -22,6 +22,7 @@ import {
   useNow,
   usePoolEvents,
 } from "~~/lib/pools";
+import { IS_TESTNET, NETWORK_NAME } from "~~/lib/site";
 import { sumEvents, topBackers, topReviewers, useContributions } from "~~/lib/stats";
 
 const STEPS = [
@@ -163,6 +164,12 @@ const Home: NextPage = () => {
                 Start one
               </Link>
             </div>
+            {IS_TESTNET && (
+              <p className="mx-auto inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-warning/40 bg-warning/10 px-3 py-1 text-xs lg:mx-0">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" aria-hidden />
+                <span>Demo on {NETWORK_NAME}. The USDC here has no value.</span>
+              </p>
+            )}
             <p className="mx-auto max-w-md text-xs opacity-60 lg:mx-0">
               Unaudited software. Reviewers are people, and a dishonest majority can release money for work that was not
               done.
