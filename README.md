@@ -4,6 +4,7 @@ Pooled funding that pays out milestone by milestone. Backers put USDC into a sha
 
 There is no owner, no admin key, no pause switch and no upgrade path. Nobody, including the deployer, can move funds except through the rules below.
 
+- Live demo: [pools.frenkia.com](https://pools.frenkia.com) (Sepolia test network; connect a wallet set to Sepolia)
 - Live contract on Sepolia: [`0x7f3d99ac9a6030c7801de1ab463ea8c27a2dc28a`](https://sepolia.etherscan.io/address/0x7f3d99ac9a6030c7801de1ab463ea8c27a2dc28a#code) (source verified)
 - Test USDC on Sepolia: [`0xa24e43dd2796d2baced76504baaab1107f10c6e4`](https://sepolia.etherscan.io/address/0xa24e43dd2796d2baced76504baaab1107f10c6e4#code) (free to mint, no value)
 
@@ -65,7 +66,7 @@ A Next.js front end reads everything straight from the contract. There is no bac
 You need Node 20.18.3 or newer, Yarn, and Git.
 
 ```bash
-git clone <this repository>
+git clone https://github.com/FritzKialo/milestone-pools.git
 cd milestone-pools
 yarn install
 ```
