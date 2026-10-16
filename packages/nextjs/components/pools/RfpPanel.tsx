@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useAccount, useReadContracts } from "wagmi";
-import { useDeployedContractInfo, useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import {
+  useDeployedContractInfo,
+  useScaffoldReadContract,
+  useScaffoldWriteContract,
+  useTargetNetwork,
+} from "~~/hooks/scaffold-eth";
 import { type Initiative, ZERO_ADDRESS, eventsFor, fmtDate, safeLink, shortAddr, usePoolEvents } from "~~/lib/pools";
 
 /** Open call: anyone can offer to do the work; the committee votes on who. */
@@ -24,9 +29,11 @@ export const RfpPanel = ({ item, reviewers }: { item: Initiative; reviewers: `0x
     return Array.from(map.entries()).map(([addr, uri]) => ({ addr: addr as `0x${string}`, uri }));
   }, [events, item.id]);
 
+  const { targetNetwork } = useTargetNetwork();
   const { data: counts } = useReadContracts({
     contracts: (pools
       ? candidates.map(c => ({
+          chainId: targetNetwork.id,
           address: pools.address,
           abi: pools.abi,
           functionName: "candidateVotes",

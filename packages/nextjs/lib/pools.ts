@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatUnits, parseEventLogs, parseUnits } from "viem";
 import { usePublicClient, useReadContracts } from "wagmi";
-import { useDeployedContractInfo, useScaffoldReadContract } from "~~/hooks/scaffold-eth";
+import { useDeployedContractInfo, useScaffoldReadContract, useTargetNetwork } from "~~/hooks/scaffold-eth";
 
 /* ----------------------------------------------------------------------------
  * Constants that mirror the contract
@@ -106,7 +106,7 @@ export const parseAmount = (s: string): bigint | null => {
   }
 };
 
-export const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+export const shortAddr = (a: string) => `${a.slice(0, 6)}\u2026${a.slice(-4)}`;
 
 export const fmtDate = (ts: number) =>
   new Date(ts * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
@@ -241,9 +241,10 @@ export type PoolEvent = {
 
 export function usePoolEvents() {
   const { data: info } = useDeployedContractInfo({ contractName: "MilestonePools" });
-  const client = usePublicClient();
+  const { targetNetwork } = useTargetNetwork();
+  const client = usePublicClient({ chainId: targetNetwork.id });
   return useQuery({
-    queryKey: ["pool-events", info?.address],
+    queryKey: ["pool-events", targetNetwork.id, info?.address],
     enabled: !!info && !!client,
     refetchInterval: 5000,
     queryFn: async (): Promise<PoolEvent[]> => {
@@ -311,6 +312,7 @@ export function useListings() {
     watch: true,
   });
   const n = Number(count ?? 0n);
+  const { targetNetwork } = useTargetNetwork();
 
   const { data: events, isLoading: detailsLoading } = usePoolEvents();
 
@@ -318,13 +320,14 @@ export function useListings() {
     () =>
       pools
         ? Array.from({ length: n }, (_, k) => ({
+            chainId: targetNetwork.id,
             address: pools.address,
             abi: pools.abi,
             functionName: "getInitiative" as const,
             args: [BigInt(k + 1)] as const,
           }))
         : [],
-    [pools, n],
+    [pools, n, targetNetwork.id],
   );
 
   const { data: reads, isLoading: readsLoading } = useReadContracts({
@@ -368,7 +371,8 @@ export const safeLink = (uri: string): string | null => {
 };
 
 export function useActivity(id: number) {
-  const client = usePublicClient();
+  const { targetNetwork } = useTargetNetwork();
+  const client = usePublicClient({ chainId: targetNetwork.id });
   const { data: events } = usePoolEvents();
   const mine = useMemo(
     () => (events ?? []).filter(e => e.args && e.args.id !== undefined && Number(e.args.id) === id),

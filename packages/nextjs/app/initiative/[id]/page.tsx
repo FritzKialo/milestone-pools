@@ -24,7 +24,7 @@ import { SaveButton } from "~~/components/pools/SaveButton";
 import { ShareButton } from "~~/components/pools/ShareButton";
 import { StatusBadge } from "~~/components/pools/StatusBadge";
 import { TopBackers } from "~~/components/pools/TopBackers";
-import { useDeployedContractInfo, useScaffoldReadContract } from "~~/hooks/scaffold-eth";
+import { useDeployedContractInfo, useScaffoldReadContract, useTargetNetwork } from "~~/hooks/scaffold-eth";
 import { buildChecks, describeRecord, reviewerRecords } from "~~/lib/analysis";
 import {
   CATEGORIES,
@@ -85,9 +85,11 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
   const records = useMemo(() => reviewerRecords(events), [events]);
 
   // Review progress per committee member for the open review.
+  const { targetNetwork } = useTargetNetwork();
   const { data: votes } = useReadContracts({
     contracts: (pools && item
       ? reviewers.map(r => ({
+          chainId: targetNetwork.id,
           address: pools.address,
           abi: pools.abi,
           functionName: "hasVoted",

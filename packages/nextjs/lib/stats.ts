@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usePublicClient } from "wagmi";
+import { useTargetNetwork } from "~~/hooks/scaffold-eth";
 import { DAY, type Listing, type PoolEvent, TOKEN_DECIMALS, usePoolEvents } from "~~/lib/pools";
 
 /* ----------------------------------------------------------------------------
@@ -12,7 +13,8 @@ import { DAY, type Listing, type PoolEvent, TOKEN_DECIMALS, usePoolEvents } from
 const blockTimes = new Map<string, number>();
 
 export function useBlockTimes(blocks: bigint[]) {
-  const client = usePublicClient();
+  const { targetNetwork } = useTargetNetwork();
+  const client = usePublicClient({ chainId: targetNetwork.id });
   const unique = useMemo(() => Array.from(new Set(blocks.map(b => b.toString()))), [blocks]);
   const key = unique.join(",");
 

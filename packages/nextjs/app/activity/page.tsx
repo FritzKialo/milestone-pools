@@ -117,9 +117,22 @@ const Activity: NextPage = () => {
   const { data: backed } = useReadContracts({
     contracts: (enabled
       ? listings.flatMap(l => [
-          { address: pools.address, abi: pools.abi, functionName: "contributions", args: [BigInt(l.id), address] },
-          { address: pools.address, abi: pools.abi, functionName: "refundableOf", args: [BigInt(l.id), address] },
           {
+            chainId: targetNetwork.id,
+            address: pools.address,
+            abi: pools.abi,
+            functionName: "contributions",
+            args: [BigInt(l.id), address],
+          },
+          {
+            chainId: targetNetwork.id,
+            address: pools.address,
+            abi: pools.abi,
+            functionName: "refundableOf",
+            args: [BigInt(l.id), address],
+          },
+          {
+            chainId: targetNetwork.id,
             address: pools.address,
             abi: pools.abi,
             functionName: "hasVoted",
