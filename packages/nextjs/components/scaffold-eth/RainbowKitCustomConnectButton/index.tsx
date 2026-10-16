@@ -4,7 +4,6 @@
 import { AddressInfoDropdown } from "./AddressInfoDropdown";
 import { AddressQRCodeModal } from "./AddressQRCodeModal";
 import { RevealBurnerPKModal } from "./RevealBurnerPKModal";
-import { WrongNetworkDropdown } from "./WrongNetworkDropdown";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Balance } from "@scaffold-ui/components";
 import { getBlockExplorerAddressLink } from "@scaffold-ui/hooks";
@@ -23,6 +22,7 @@ export const RainbowKitCustomConnectButton = () => {
     <ConnectButton.Custom>
       {({ account, chain, openConnectModal, mounted }) => {
         const connected = mounted && account && chain;
+        const onTarget = !!chain && !chain.unsupported && chain.id === targetNetwork.id;
         const blockExplorerAddressLink = account
           ? getBlockExplorerAddressLink(targetNetwork, account.address)
           : undefined;
@@ -38,23 +38,21 @@ export const RainbowKitCustomConnectButton = () => {
                 );
               }
 
-              if (chain.unsupported || chain.id !== targetNetwork.id) {
-                return <WrongNetworkDropdown />;
-              }
-
               return (
                 <>
                   <div className="hidden sm:flex flex-col items-center mr-2">
-                    <Balance
-                      address={account.address as Address}
-                      style={{
-                        minHeight: "0",
-                        height: "auto",
-                        fontSize: "0.8em",
-                      }}
-                    />
-                    <span className="text-xs" style={{ color: networkColor }}>
-                      {chain.name}
+                    {onTarget && (
+                      <Balance
+                        address={account.address as Address}
+                        style={{
+                          minHeight: "0",
+                          height: "auto",
+                          fontSize: "0.8em",
+                        }}
+                      />
+                    )}
+                    <span className="text-xs" style={{ color: onTarget ? networkColor : undefined }}>
+                      {chain.name ?? "Unknown network"}
                     </span>
                   </div>
                   <AddressInfoDropdown
