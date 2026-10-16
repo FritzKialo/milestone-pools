@@ -46,7 +46,7 @@ export const wagmiConnectors = () => {
     ],
 
     {
-      appName: "scaffold-eth-2",
+      appName: "Milestone Pools",
       projectId: scaffoldConfig.walletConnectProjectId,
     },
   );
