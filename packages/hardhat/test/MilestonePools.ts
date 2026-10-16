@@ -270,6 +270,41 @@ describe("MilestonePools", function () {
       );
     });
 
+    it("lets the final contribution fill a gap smaller than the minimum, and nothing else below it", async function () {
+      const { pools, alice, bob, create, ini } = await loadFixture(fixture);
+      // goal 10.5 USDC, minimum 1 USDC: after 10 USDC the gap (0.5) is below the minimum
+      const { id } = await create({ milestoneAmounts: [usdc(5), usdc(5) + 500_000n] });
+      await pools.connect(alice).contribute(id, usdc(10));
+      await expect(pools.connect(bob).contribute(id, 499_999n)).to.be.revertedWithCustomError(pools, "BelowMinimum");
+      await expect(pools.connect(bob).contribute(id, usdc(1))).to.be.revertedWithCustomError(pools, "ExceedsGoal");
+      await pools.connect(bob).contribute(id, 500_000n);
+      const i = await ini(id);
+      expect(i.raised).to.equal(i.goal);
+      expect(Number(i.status)).to.equal(Status.Active);
+    });
+
+    it("never lets a scaled-down milestone round to zero", async function () {
+      const { pools, alice, create, ini } = await loadFixture(fixture);
+      // at 25% qualification a milestone needs at least 4 base units; at 10%, at least 10
+      await expect(create({ qualifyBps: 2500, milestoneAmounts: [3n, usdc(1)] })).to.be.revertedWithCustomError(
+        pools,
+        "InvalidMilestones",
+      );
+      await create({ qualifyBps: 2500, milestoneAmounts: [4n, usdc(1)] });
+      await expect(create({ qualifyBps: 1000, milestoneAmounts: [9n, usdc(100)] })).to.be.revertedWithCustomError(
+        pools,
+        "InvalidMilestones",
+      );
+      // the tightest case: smallest allowed milestone, smallest qualifying raise (exactly 10%)
+      const { id } = await create({ qualifyBps: 1000, milestoneAmounts: [10n, usdc(100)] });
+      await pools.connect(alice).contribute(id, 10_000_001n);
+      await time.increaseTo((await ini(id)).fundingDeadline + 1n);
+      await pools.settle(id);
+      const amounts: bigint[] = await pools.getMilestoneAmounts(id);
+      expect(amounts.every(a => a > 0n)).to.equal(true);
+      expect(amounts.reduce((a, b) => a + b, 0n)).to.equal(10_000_001n);
+    });
+
     it("closes exactly one second after the deadline", async function () {
       const { pools, alice, create, ini } = await loadFixture(fixture);
       const { id } = await create();

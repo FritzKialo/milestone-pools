@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.30;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -226,7 +226,9 @@ contract MilestonePools is ReentrancyGuard {
         uint256 goal;
         for (uint256 i; i < mCount; ++i) {
             uint256 a = p.milestoneAmounts[i];
-            if (a == 0) revert InvalidMilestones();
+            // Each milestone must be large enough to survive the worst-case scale-down (the smallest
+            // qualifying raise) with at least one unit left, so no milestone can round to zero.
+            if (a == 0 || a * p.qualifyBps < BPS) revert InvalidMilestones();
             goal += a;
         }
 
@@ -276,12 +278,16 @@ contract MilestonePools is ReentrancyGuard {
     /// @notice Add `amount` to an initiative's pool. Funds stay refundable until released.
     /// @dev Requires prior ERC-20 approval. Reverts for fee-on-transfer tokens. A contribution
     ///      that would exceed the goal reverts, so callers should clamp to the remaining amount.
+    ///      Contributions below the token minimum are only accepted when they fill the goal exactly.
     function contribute(uint256 id, uint256 amount) external nonReentrant {
         Initiative storage ini = _get(id);
         if (ini.status != Status.Funding) revert WrongStatus();
         if (block.timestamp > ini.fundingDeadline) revert FundingClosed();
-        if (amount < minContribution[ini.token]) revert BelowMinimum();
-        if (amount > ini.goal - ini.raised) revert ExceedsGoal();
+        uint256 remaining = ini.goal - ini.raised;
+        // The minimum does not apply to the contribution that exactly fills the goal, so a gap
+        // smaller than the minimum can never leave an initiative unable to reach its goal.
+        if (amount < minContribution[ini.token] && amount != remaining) revert BelowMinimum();
+        if (amount > remaining) revert ExceedsGoal();
 
         // effects
         if (contributions[id][msg.sender] == 0) ++ini.backers;

@@ -129,6 +129,8 @@ const Create: NextPage = () => {
   if (!summary.trim()) problems.push("Add a short summary.");
   if (rows.some((_, i) => amounts[i] === null || amounts[i] === 0n))
     problems.push("Every milestone needs an amount above zero.");
+  else if (amounts.some(x => x !== null && x * BigInt(Math.round(qualifyPct * 100)) < 10_000n))
+    problems.push("A milestone is too small for the chosen minimum to proceed. Raise its amount or the percentage.");
   if (kind === "grant") {
     if (!isAddress(grantee)) problems.push("Enter the grantee's wallet address.");
     else if (reviewers.some(r => r.toLowerCase() === grantee.toLowerCase()))
