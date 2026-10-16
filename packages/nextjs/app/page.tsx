@@ -7,7 +7,6 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { CountUp } from "~~/components/pools/CountUp";
 import { CategoryIcon } from "~~/components/pools/Cover";
 import { FeedList } from "~~/components/pools/FeedList";
-import { FundingBar } from "~~/components/pools/FundingBar";
 import { InitiativeCard } from "~~/components/pools/InitiativeCard";
 import { LiveTicker } from "~~/components/pools/LiveTicker";
 import { PeopleStrip } from "~~/components/pools/PeopleStrip";
@@ -64,8 +63,6 @@ const GUARANTEES = [
     ],
   },
 ];
-
-const SAMPLE_PLAN = [3000000000n, 4000000000n, 3000000000n];
 
 const Home: NextPage = () => {
   const { listings } = useListings();
@@ -331,37 +328,25 @@ const Home: NextPage = () => {
             approves the work, one milestone at a time.
           </p>
         </div>
-        <div className="glass space-y-5 p-6" aria-label="Example of how a pool pays out">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">Example: community workshop series</span>
-            <span className="opacity-60">Sample</span>
-          </div>
-          <FundingBar
-            raised={8_000_000_000n}
-            goal={10_000_000_000n}
-            qualifyBps={5000}
-            plan={SAMPLE_PLAN}
-            status="Active"
-            currentMilestone={1}
-            phase="UnderReview"
-          />
+        <div className="glass space-y-4 p-6" aria-label="How to read a funding bar">
+          <p className="text-sm font-medium">Reading the bar on every initiative</p>
           <ul className="space-y-3 text-sm">
             <li className="flex items-center gap-3">
               <span className="h-2.5 w-8 shrink-0 rounded-full bg-success" />
               <span>
-                <strong>Milestone 1</strong> approved, 3,000 {TOKEN_SYMBOL} paid
+                <strong>Paid</strong>: the committee approved the milestone and the money was released.
               </span>
             </li>
             <li className="flex items-center gap-3">
               <span className="h-2.5 w-8 shrink-0 rounded-full bg-warning" />
               <span>
-                <strong>Milestone 2</strong> under review, 2 of 3 approvals needed
+                <strong>Under review</strong>: the grantee submitted evidence and reviewers are voting.
               </span>
             </li>
             <li className="flex items-center gap-3">
               <span className="h-2.5 w-8 shrink-0 rounded-full bg-success/20" />
               <span>
-                <strong>Milestone 3</strong> waits until milestone 2 is approved
+                <strong>Waiting</strong>: opens once the milestone before it is approved.
               </span>
             </li>
           </ul>

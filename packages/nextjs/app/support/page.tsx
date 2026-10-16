@@ -5,17 +5,21 @@ import type { NextPage } from "next";
 import { ClipboardDocumentIcon, EnvelopeIcon, LifebuoyIcon, ShieldExclamationIcon } from "@heroicons/react/24/outline";
 import { FaqList } from "~~/components/pools/FaqList";
 import { useDeployedContractInfo, useTargetNetwork } from "~~/hooks/scaffold-eth";
-import { REPO_URL, SUPPORT_EMAIL } from "~~/lib/site";
+import { IS_TESTNET, REPO_URL, SUPPORT_EMAIL } from "~~/lib/site";
 
 const FIXES = [
   {
-    q: "The page says I am on the wrong network",
-    a: "Open your wallet and switch to the network shown in the footer (Network: ...). Then reload the page. Initiatives only appear for the network this site is set to.",
+    q: "A transaction fails with a wrong network message",
+    a: "You can browse from any network, but sending a transaction needs your wallet on the network shown in the footer (Network: ...). Switch to it in your wallet, then try again.",
   },
-  {
-    q: "I have no Sepolia ETH or test USDC",
-    a: "Sepolia ETH pays for gas and comes from a public Sepolia faucet. The USDC here is a test token with no value. The contribute box has a button to mint some for your wallet when you are on a test network.",
-  },
+  ...(IS_TESTNET
+    ? [
+        {
+          q: "I have no Sepolia ETH or test USDC",
+          a: "Sepolia ETH pays for gas and comes from a public Sepolia faucet. The USDC here is a test token with no value. The contribute box has a button to mint some for your wallet when you are on a test network.",
+        },
+      ]
+    : []),
   {
     q: "Why are there two wallet prompts when I contribute?",
     a: "The first one approves the contract to take that amount of USDC from you. The second one makes the contribution. Both are needed, and you can skip the first when you have already approved enough.",

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { NextPage } from "next";
+import { IS_TESTNET } from "~~/lib/site";
 
 export const metadata = { title: "Terms & Risks" };
 
@@ -65,10 +66,12 @@ const Terms: NextPage = () => (
         service or a payment processor, and nobody promises that any initiative will succeed or that any milestone will
         be delivered.
       </p>
-      <p>
-        <strong>Test version.</strong> While the app shows a test network, the token is a free test token with no value,
-        and nothing here involves real money.
-      </p>
+      {IS_TESTNET && (
+        <p>
+          <strong>Test version.</strong> While the app shows a test network, the token is a free test token with no
+          value, and nothing here involves real money.
+        </p>
+      )}
     </Section>
 
     <Section id="rules" title="The rules, in plain language">

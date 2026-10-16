@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAccount } from "wagmi";
 import { useDeployedContractInfo, useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 import { type Initiative, TOKEN_SYMBOL, fmtAmount, parseAmount } from "~~/lib/pools";
+import { IS_TESTNET } from "~~/lib/site";
 
 export const ContributeBox = ({ item }: { item: Initiative }) => {
   const { address } = useAccount();
@@ -129,14 +130,16 @@ export const ContributeBox = ({ item }: { item: Initiative }) => {
         </Link>{" "}
         first.
       </p>
-      <button
-        type="button"
-        className="link text-xs opacity-70"
-        disabled={busy}
-        onClick={() => run(() => token({ functionName: "mint", args: [address, 1_000_000_000n] }))}
-      >
-        Get 1,000 test {TOKEN_SYMBOL}
-      </button>
+      {IS_TESTNET && (
+        <button
+          type="button"
+          className="link text-xs opacity-70"
+          disabled={busy}
+          onClick={() => run(() => token({ functionName: "mint", args: [address, 1_000_000_000n] }))}
+        >
+          Get 1,000 test {TOKEN_SYMBOL}
+        </button>
+      )}
     </div>
   );
 };

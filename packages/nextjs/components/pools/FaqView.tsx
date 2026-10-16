@@ -22,6 +22,7 @@ import {
   REVIEW_PERIOD,
   SUBMISSION_WINDOW,
 } from "~~/lib/pools";
+import { IS_TESTNET, NETWORK_NAME } from "~~/lib/site";
 
 type Group = { id: string; title: string; blurb: string; icon: typeof BookOpenIcon; items: { q: string; a: string }[] };
 
@@ -46,7 +47,9 @@ const GROUPS: Group[] = [
       },
       {
         q: "Which token does it use?",
-        a: "USDC. On a test network it is a free test token with no value, and you can get some from the button on an initiative page.",
+        a: IS_TESTNET
+          ? "USDC. On a test network it is a free test token with no value, and you can get some from the button on an initiative page."
+          : "USDC.",
       },
       {
         q: "Who are the people involved?",
@@ -158,11 +161,13 @@ const GROUPS: Group[] = [
       },
       {
         q: "Why do I need ETH as well as USDC?",
-        a: "Every transaction on Ethereum costs gas, and gas is paid in ETH. USDC is only what you contribute. On a test network, free test ETH is available from a faucet.",
+        a: `Every transaction on Ethereum costs gas, and gas is paid in ETH. USDC is only what you contribute.${IS_TESTNET ? " On a test network, free test ETH is available from a faucet." : ""}`,
       },
       {
         q: "Which network is this on?",
-        a: "The live demo runs on Sepolia, an Ethereum test network where nothing has real value. The header shows the network the site expects. If your wallet is on another one, the site asks you to switch.",
+        a: IS_TESTNET
+          ? `The live demo runs on ${NETWORK_NAME}, an Ethereum test network where nothing has real value. You can browse from any network, but sending a transaction needs your wallet on ${NETWORK_NAME}.`
+          : `The site runs on ${NETWORK_NAME}. You can browse from any network, but sending a transaction needs your wallet on ${NETWORK_NAME}.`,
       },
       {
         q: "Which wallets work?",
