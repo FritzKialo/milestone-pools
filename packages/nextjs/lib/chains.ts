@@ -35,6 +35,7 @@ export const REAL_USDC: Record<number, `0x${string}`> = {
 const META: Record<number, { slug: string; label: string; color: string }> = {
   11155111: { slug: "sepolia", label: "Sepolia", color: "#7c5cff" },
   8453: { slug: "base", label: "Base", color: "#0052ff" },
+  84532: { slug: "base-sepolia", label: "Base Sepolia", color: "#0052ff" },
   42161: { slug: "arbitrum", label: "Arbitrum", color: "#28a0f0" },
   10: { slug: "optimism", label: "Optimism", color: "#ff0420" },
   1: { slug: "ethereum", label: "Ethereum", color: "#627eea" },

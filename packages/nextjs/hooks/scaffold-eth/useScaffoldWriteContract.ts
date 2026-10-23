@@ -6,6 +6,7 @@ import { WriteContractErrorType, WriteContractReturnType } from "wagmi/actions";
 import { WriteContractVariables } from "wagmi/query";
 import { useSelectedNetwork } from "~~/hooks/scaffold-eth";
 import { useDeployedContractInfo, useTransactor } from "~~/hooks/scaffold-eth";
+import { builderCodeSuffixFor } from "~~/utils/builderCode";
 import { AllowedChainIds, notification } from "~~/utils/scaffold-eth";
 import {
   ContractAbi,
@@ -86,6 +87,10 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
 
   const { switchChainAsync } = useSwitchChain();
 
+  /** Base Builder Code attribution: appended on Base networks only, nothing on other chains. */
+  const builderSuffix = builderCodeSuffixFor(selectedNetwork.id);
+  const attribution = builderSuffix ? { dataSuffix: builderSuffix } : {};
+
   /** Asks the wallet to move to the initiative's network, right when the person acts, instead of showing a banner. */
   const ensureNetwork = async (): Promise<boolean> => {
     if (accountChain?.id === selectedNetwork.id) return true;
@@ -124,6 +129,7 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
         address: deployedContractData.address,
         chainId: selectedNetwork.id,
         ...variables,
+        ...attribution,
       } as WriteContractVariables<Abi, string, any[], Config, number>;
 
       if (!finalConfig?.disableSimulate) {
@@ -180,6 +186,7 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
           address: deployedContractData.address,
           chainId: selectedNetwork.id,
           ...variables,
+          ...attribution,
         } as WriteContractVariables<Abi, string, any[], Config, number>,
         options as
           | MutateOptions<

@@ -4,6 +4,7 @@ import type { Abi } from "viem";
 import { useAccount, useConfig, useSwitchChain, useWriteContract } from "wagmi";
 import { useTransactor } from "~~/hooks/scaffold-eth";
 import { poolChain } from "~~/lib/chains";
+import { builderCodeSuffixFor } from "~~/utils/builderCode";
 import { notification } from "~~/utils/scaffold-eth";
 import { simulateContractWriteAndNotifyError } from "~~/utils/scaffold-eth/contract";
 
@@ -34,7 +35,9 @@ export function useChainWrite() {
         return;
       }
     }
-    const params = { ...call, chainId } as any;
+    // Base Builder Code attribution: appended on Base networks only, nothing on other chains.
+    const builderSuffix = builderCodeSuffixFor(chainId);
+    const params = { ...call, chainId, ...(builderSuffix ? { dataSuffix: builderSuffix } : {}) } as any;
     await simulateContractWriteAndNotifyError({ wagmiConfig: config, writeContractParams: params, chainId });
     return writeTx(() => writeContractAsync(params));
   };

@@ -20,6 +20,7 @@ export const DEFAULT_ALCHEMY_API_KEY = "IZYEU2cWBgnFmgiTAgpWD";
 const AVAILABLE: Record<string, chains.Chain> = {
   sepolia: chains.sepolia,
   base: chains.base,
+  basesepolia: chains.baseSepolia,
   arbitrum: chains.arbitrum,
   optimism: chains.optimism,
   hardhat: chains.hardhat,
@@ -27,6 +28,7 @@ const AVAILABLE: Record<string, chains.Chain> = {
 
 /**
  * Which networks are live on this site, as a comma separated list, for example "base,arbitrum,optimism".
+ * Names are matched in lowercase, so Base Sepolia is "basesepolia".
  * Do not mix test networks and real networks in one list: the demo text and test-token buttons assume all or none.
  * The default is the Sepolia demo.
  */
@@ -57,6 +59,7 @@ const scaffoldConfig = {
     Object.entries({
       [chains.sepolia.id]: process.env.NEXT_PUBLIC_RPC_11155111,
       [chains.base.id]: process.env.NEXT_PUBLIC_RPC_8453,
+      [chains.baseSepolia.id]: process.env.NEXT_PUBLIC_RPC_84532,
       [chains.arbitrum.id]: process.env.NEXT_PUBLIC_RPC_42161,
       [chains.optimism.id]: process.env.NEXT_PUBLIC_RPC_10,
     }).filter(([, url]) => !!url),

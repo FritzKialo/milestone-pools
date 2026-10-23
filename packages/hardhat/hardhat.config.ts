@@ -92,12 +92,12 @@ export default defineConfig({
     },
     base: {
       type: "http",
-      url: "https://mainnet.base.org",
+      url: process.env.BASE_RPC_URL || `https://base-mainnet.g.alchemy.com/v2/${providerApiKey}`,
       accounts: [deployerPrivateKey],
     },
     baseSepolia: {
       type: "http",
-      url: "https://sepolia.base.org",
+      url: process.env.BASE_SEPOLIA_RPC_URL || `https://base-sepolia.g.alchemy.com/v2/${providerApiKey}`,
       accounts: [deployerPrivateKey],
     },
     arbitrum: {
