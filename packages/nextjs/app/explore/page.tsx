@@ -6,7 +6,13 @@ import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { NextPage } from "next";
 import { useAccount } from "wagmi";
-import { ArrowDownTrayIcon, ArrowsRightLeftIcon, LinkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import {
+  AdjustmentsHorizontalIcon,
+  ArrowDownTrayIcon,
+  ArrowsRightLeftIcon,
+  LinkIcon,
+  MagnifyingGlassIcon,
+} from "@heroicons/react/24/outline";
 import { InitiativeCard } from "~~/components/pools/InitiativeCard";
 import { InitiativeTable } from "~~/components/pools/InitiativeTable";
 import { CardGridSkeleton } from "~~/components/pools/Skeletons";
@@ -90,6 +96,8 @@ const ExploreInner = () => {
   const [onlyMine, setOnlyMine] = useState(params.get("mine") === "1");
   const { address } = useAccount();
   const [compareOn, setCompareOn] = useState(false);
+  // On phones the filter chips sit behind a button so results show straight away. Wider screens always show them.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
 
   // Titles live in metadata, so search needs them loaded. Cached per URI by react-query.
@@ -168,6 +176,16 @@ const ExploreInner = () => {
     onlySaved ||
     onlyCalls ||
     onlyMine;
+  const activeFilterCount = [
+    category !== "all",
+    chain !== "all",
+    status !== "all",
+    size !== "any",
+    onlyQualified,
+    onlySaved,
+    onlyCalls,
+    onlyMine,
+  ].filter(Boolean).length;
 
   // Keep the address bar in step with the filters so the page can be shared or bookmarked.
   useEffect(() => {
@@ -247,8 +265,8 @@ const ExploreInner = () => {
       </div>
 
       <div className="surface mb-6 space-y-4 p-4">
-        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
-          <label className="input input-bordered flex w-full items-center gap-2 bg-base-100">
+        <div className="flex flex-col gap-3 md:flex-row">
+          <label className="input input-bordered flex w-full items-center gap-2 bg-base-100 md:flex-1">
             <MagnifyingGlassIcon className="h-4 w-4 opacity-60" />
             <input
               className="grow"
@@ -258,119 +276,135 @@ const ExploreInner = () => {
               aria-label="Search"
             />
           </label>
-          <select
-            className="select select-bordered bg-base-100"
-            value={sort}
-            onChange={e => setSort(e.target.value as Sort)}
-            aria-label="Sort"
-          >
-            <option value="newest">Newest</option>
-            <option value="ending">Ending soon</option>
-            <option value="funded">Most funded</option>
-            <option value="backers">Most backers</option>
-            <option value="goal">Largest goal</option>
-          </select>
-          <ViewToggle view={view} onChange={setView} />
+          <div className="flex gap-3">
+            <select
+              className="select select-bordered min-w-0 flex-1 bg-base-100 md:w-auto md:flex-none"
+              value={sort}
+              onChange={e => setSort(e.target.value as Sort)}
+              aria-label="Sort"
+            >
+              <option value="newest">Newest</option>
+              <option value="ending">Ending soon</option>
+              <option value="funded">Most funded</option>
+              <option value="backers">Most backers</option>
+              <option value="goal">Largest goal</option>
+            </select>
+            <ViewToggle view={view} onChange={setView} />
+            <button
+              type="button"
+              className={`btn shrink-0 md:hidden ${activeFilterCount > 0 ? "btn-primary" : "border-base-300 bg-base-100"}`}
+              aria-expanded={filtersOpen}
+              aria-controls="explore-filters"
+              onClick={() => setFiltersOpen(v => !v)}
+            >
+              <AdjustmentsHorizontalIcon className="h-4 w-4" />
+              Filters
+              {activeFilterCount > 0 && <span className="tabular">{activeFilterCount}</span>}
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Category">
-          <button className={chip(category === "all")} onClick={() => setCategory("all")}>
-            All categories
-          </button>
-          {CATEGORIES.map((c, i) => (
-            <button key={c} className={chip(category === i)} onClick={() => setCategory(i)}>
-              {c}
-              <span className="opacity-60">{counts.get(i) ?? 0}</span>
+        <div id="explore-filters" className={`${filtersOpen ? "space-y-4" : "hidden"} md:block md:space-y-4`}>
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Category">
+            <button className={chip(category === "all")} onClick={() => setCategory("all")}>
+              All categories
             </button>
-          ))}
-        </div>
-
-        {MULTI_CHAIN && (
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Network">
-            <button className={chip(chain === "all")} onClick={() => setChain("all")}>
-              All networks
-            </button>
-            {POOL_CHAINS.map(c => (
-              <button key={c.id} className={chip(chain === c.id)} onClick={() => setChain(c.id)}>
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} aria-hidden="true" />
-                {c.label}
-                <span className="opacity-60">{listings.filter(l => l.chainId === c.id).length}</span>
+            {CATEGORIES.map((c, i) => (
+              <button key={c} className={chip(category === i)} onClick={() => setCategory(i)}>
+                {c}
+                <span className="opacity-60">{counts.get(i) ?? 0}</span>
               </button>
             ))}
           </div>
-        )}
 
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Status">
-          {STATUS_FILTERS.map(f => (
-            <button key={f.key} className={chip(status === f.key)} onClick={() => setStatus(f.key)}>
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Goal size">
-          {SIZES.map(z => (
-            <button key={z.key} className={chip(size === z.key)} onClick={() => setSize(z.key)}>
-              {z.label}
-            </button>
-          ))}
-          <span className="text-xs opacity-60">{TOKEN_SYMBOL}</span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-          <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              className="checkbox checkbox-sm"
-              checked={onlyQualified}
-              onChange={e => setOnlyQualified(e.target.checked)}
-            />
-            Already past the minimum
-          </label>
-          <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              className="checkbox checkbox-sm"
-              checked={onlySaved}
-              onChange={e => setOnlySaved(e.target.checked)}
-            />
-            Saved by me ({saved.length})
-          </label>
-          <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              className="checkbox checkbox-sm"
-              checked={onlyCalls}
-              onChange={e => setOnlyCalls(e.target.checked)}
-            />
-            Open calls for a grantee
-          </label>
-          <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              className="checkbox checkbox-sm"
-              checked={onlyMine}
-              onChange={e => setOnlyMine(e.target.checked)}
-            />
-            Created by me
-          </label>
-          {filtersOn && (
-            <button
-              className="link ml-auto"
-              onClick={() => {
-                setQuery("");
-                setCategory("all");
-                setStatus("all");
-                setSize("any");
-                setOnlyQualified(false);
-                setOnlySaved(false);
-                setOnlyCalls(false);
-                setOnlyMine(false);
-              }}
-            >
-              Clear filters
-            </button>
+          {MULTI_CHAIN && (
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Network">
+              <button className={chip(chain === "all")} onClick={() => setChain("all")}>
+                All networks
+              </button>
+              {POOL_CHAINS.map(c => (
+                <button key={c.id} className={chip(chain === c.id)} onClick={() => setChain(c.id)}>
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} aria-hidden="true" />
+                  {c.label}
+                  <span className="opacity-60">{listings.filter(l => l.chainId === c.id).length}</span>
+                </button>
+              ))}
+            </div>
           )}
+
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Status">
+            {STATUS_FILTERS.map(f => (
+              <button key={f.key} className={chip(status === f.key)} onClick={() => setStatus(f.key)}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Goal size">
+            {SIZES.map(z => (
+              <button key={z.key} className={chip(size === z.key)} onClick={() => setSize(z.key)}>
+                {z.label}
+              </button>
+            ))}
+            <span className="text-xs opacity-60">{TOKEN_SYMBOL}</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={onlyQualified}
+                onChange={e => setOnlyQualified(e.target.checked)}
+              />
+              Already past the minimum
+            </label>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={onlySaved}
+                onChange={e => setOnlySaved(e.target.checked)}
+              />
+              Saved by me ({saved.length})
+            </label>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={onlyCalls}
+                onChange={e => setOnlyCalls(e.target.checked)}
+              />
+              Open calls for a grantee
+            </label>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={onlyMine}
+                onChange={e => setOnlyMine(e.target.checked)}
+              />
+              Created by me
+            </label>
+            {filtersOn && (
+              <button
+                className="link ml-auto"
+                onClick={() => {
+                  setQuery("");
+                  setCategory("all");
+                  setChain("all");
+                  setStatus("all");
+                  setSize("any");
+                  setOnlyQualified(false);
+                  setOnlySaved(false);
+                  setOnlyCalls(false);
+                  setOnlyMine(false);
+                }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

@@ -65,7 +65,7 @@ export const Logo = ({ className = "" }: { className?: string }) => (
       <rect x="9.5" y="8" width="7" height="17" rx="2" fill="#4fcf99" fillOpacity="0.6" />
       <rect x="18" y="1" width="7" height="24" rx="2" fill="#f0b64a" />
     </svg>
-    <span className="text-lg font-bold tracking-tight max-[440px]:sr-only">Milestone Pools</span>
+    <span className="text-base font-bold tracking-tight sm:text-lg max-[379px]:sr-only">Milestone Pools</span>
   </span>
 );
 
@@ -98,7 +98,7 @@ export const Header = () => {
               <HeaderMenuLinks />
             </ul>
           </details>
-          <Link href="/" passHref className="mr-2 ml-1 flex shrink-0 items-center sm:mr-6 sm:ml-2">
+          <Link href="/" passHref className="mr-1 ml-0.5 flex shrink-0 items-center sm:mr-6 sm:ml-2">
             <Logo />
           </Link>
           <ul className="m-0 hidden h-16 list-none p-0 lg:flex lg:flex-nowrap">

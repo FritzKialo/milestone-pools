@@ -146,8 +146,8 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
       </Link>
 
       <div className="surface mt-4 overflow-hidden">
-        <Cover image={meta.image} category={category} className="h-44 sm:h-56" />
-        <div className="space-y-4 p-6">
+        <Cover image={meta.image} category={category} className="h-32 sm:h-56" />
+        <div className="space-y-4 p-4 sm:p-6">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={item.status} />
             <span className="badge badge-ghost">{CATEGORIES[category] ?? "Other"}</span>
@@ -155,14 +155,14 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
             {item.isRfp && <span className="badge badge-outline">Open call</span>}
           </div>
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <h1 className="max-w-3xl text-3xl font-bold leading-tight">{meta.title}</h1>
+            <h1 className="max-w-3xl text-2xl font-bold leading-tight sm:text-3xl">{meta.title}</h1>
             <div className="flex gap-2">
               <CalendarButton item={item} title={meta.title} now={now} />
               <SaveButton uid={uid} label />
               <ShareButton />
             </div>
           </div>
-          {meta.summary && <p className="max-w-3xl text-lg opacity-80">{meta.summary}</p>}
+          {meta.summary && <p className="max-w-3xl text-base opacity-80 sm:text-lg">{meta.summary}</p>}
           <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
             <div className="flex items-center gap-2">
               <span className="opacity-60">Proposed by</span>
@@ -315,7 +315,8 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
           </section>
         </div>
 
-        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+        {/* On phones and tablets the funding box comes first, so people see progress and can contribute without scrolling past everything. */}
+        <aside className="order-first space-y-6 lg:sticky lg:top-24 lg:order-none lg:self-start">
           <div className="surface space-y-5 p-5">
             <FundingBar
               raised={item.raised}

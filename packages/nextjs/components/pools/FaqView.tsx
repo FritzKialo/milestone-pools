@@ -363,7 +363,7 @@ export const FaqView = () => {
       )}
 
       <div className="grid gap-10 lg:grid-cols-[14rem_minmax(0,1fr)]">
-        <nav aria-label="Sections" className="min-w-0 lg:sticky lg:top-24 lg:self-start">
+        <nav aria-label="Sections" className="relative min-w-0 lg:sticky lg:top-24 lg:self-start">
           <ul className="scroll-row -mx-4 flex gap-2 px-4 pb-2 lg:mx-0 lg:block lg:space-y-1 lg:overflow-visible lg:px-0 lg:pb-0">
             {GROUPS.map(g => {
               const count = groups.find(x => x.id === g.id)?.items.length ?? 0;
@@ -387,6 +387,11 @@ export const FaqView = () => {
               );
             })}
           </ul>
+          {/* A fade at the right edge shows the section tabs scroll sideways on narrow screens. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 -right-4 w-12 bg-linear-to-l from-base-200 to-transparent lg:hidden"
+          />
         </nav>
 
         <div className="min-w-0 space-y-12">
