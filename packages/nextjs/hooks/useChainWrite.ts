@@ -4,6 +4,7 @@ import type { Abi } from "viem";
 import { useAccount, useConfig, useSwitchChain, useWriteContract } from "wagmi";
 import { useTransactor } from "~~/hooks/scaffold-eth";
 import { poolChain } from "~~/lib/chains";
+import { sendAttributedCall, walletAppendsDataSuffix } from "~~/utils/attributedCall";
 import { builderCodeSuffixFor } from "~~/utils/builderCode";
 import { notification } from "~~/utils/scaffold-eth";
 import { simulateContractWriteAndNotifyError } from "~~/utils/scaffold-eth/contract";
@@ -39,6 +40,10 @@ export function useChainWrite() {
     const builderSuffix = builderCodeSuffixFor(chainId);
     const params = { ...call, chainId, ...(builderSuffix ? { dataSuffix: builderSuffix } : {}) } as any;
     await simulateContractWriteAndNotifyError({ wagmiConfig: config, writeContractParams: params, chainId });
+    // Smart-account wallets that can add the Builder Code themselves get it through wallet_sendCalls instead.
+    if (builderSuffix && (await walletAppendsDataSuffix(config, address, chainId))) {
+      return writeTx(() => sendAttributedCall(config, { ...call, chainId, suffix: builderSuffix }));
+    }
     return writeTx(() => writeContractAsync(params));
   };
 }

@@ -6,6 +6,7 @@ import { WriteContractErrorType, WriteContractReturnType } from "wagmi/actions";
 import { WriteContractVariables } from "wagmi/query";
 import { useSelectedNetwork } from "~~/hooks/scaffold-eth";
 import { useDeployedContractInfo, useTransactor } from "~~/hooks/scaffold-eth";
+import { sendAttributedCall, walletAppendsDataSuffix } from "~~/utils/attributedCall";
 import { builderCodeSuffixFor } from "~~/utils/builderCode";
 import { AllowedChainIds, notification } from "~~/utils/scaffold-eth";
 import {
@@ -72,7 +73,7 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
     }
   }, [configOrName]);
 
-  const { chain: accountChain } = useAccount();
+  const { chain: accountChain, address: accountAddress } = useAccount();
   const writeTx = useTransactor();
   const [isMining, setIsMining] = useState(false);
 
@@ -138,6 +139,35 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
           writeContractParams: writeContractObject,
           chainId: selectedNetwork.id as AllowedChainIds,
         });
+      }
+
+      // Smart-account wallets that can add the Builder Code themselves get it through wallet_sendCalls instead.
+      // Calls that pass their own callbacks keep the usual path, because wallet_sendCalls does not run them.
+      const walletAddsSuffix =
+        !!builderSuffix &&
+        !!accountAddress &&
+        Object.keys(mutateOptions).length === 0 &&
+        (await walletAppendsDataSuffix(wagmiConfig, accountAddress, selectedNetwork.id));
+
+      if (walletAddsSuffix && builderSuffix) {
+        const { functionName, args, value } = variables as unknown as {
+          functionName: string;
+          args?: readonly unknown[];
+          value?: bigint;
+        };
+        return await writeTx(
+          () =>
+            sendAttributedCall(wagmiConfig, {
+              chainId: selectedNetwork.id,
+              address: deployedContractData.address,
+              abi: deployedContractData.abi as Abi,
+              functionName,
+              args,
+              value,
+              suffix: builderSuffix,
+            }),
+          { blockConfirmations, onBlockConfirmation },
+        );
       }
 
       const makeWriteWithParams = () =>
