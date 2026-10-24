@@ -4,16 +4,24 @@ Pooled funding that pays out milestone by milestone. Backers put USDC into a sha
 
 There is no owner, no admin key, no pause switch and no upgrade path. Nobody, including the deployer, can move funds except through the rules below.
 
-- Live demo: [pools.frenkia.com](https://pools.frenkia.com) (Sepolia test network; connect a wallet set to Sepolia)
-- Live contract on Sepolia: [`0xb09af45694a3455998380033bb75703cdc087e88`](https://sepolia.etherscan.io/address/0xb09af45694a3455998380033bb75703cdc087e88#code) (source verified)
-- Test USDC on Sepolia: [`0xa24e43dd2796d2baced76504baaab1107f10c6e4`](https://sepolia.etherscan.io/address/0xa24e43dd2796d2baced76504baaab1107f10c6e4#code) (free to mint, no value)
+## Deployments
 
-> **Status: unaudited, testnet only.** This is a portfolio and learning project. Do not put real funds into it. See [the threat model](docs/THREAT_MODEL.md) for what it protects against and what it cannot.
+| Network | Contract | Token | Notes |
+|---|---|---|---|
+| Base | [`0x50ad6c7e2f6c1598ccd35a3e0194abd71a470fab`](https://basescan.org/address/0x50ad6c7e2f6c1598ccd35a3e0194abd71a470fab#code) | Circle USDC [`0x8335…2913`](https://basescan.org/token/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913) | Beta with deposit caps, source verified |
+| Sepolia | [`0xb09af45694a3455998380033bb75703cdc087e88`](https://sepolia.etherscan.io/address/0xb09af45694a3455998380033bb75703cdc087e88#code) | Test USDC [`0xa24e…c6e4`](https://sepolia.etherscan.io/address/0xa24e43dd2796d2baced76504baaab1107f10c6e4#code) | Public demo, free test token, source verified |
+| Base Sepolia | [`0x7f3d99ac9a6030c7801de1ab463ea8c27a2dc28a`](https://sepolia.basescan.org/address/0x7f3d99ac9a6030c7801de1ab463ea8c27a2dc28a) | Test USDC [`0xa24e…c6e4`](https://sepolia.basescan.org/address/0xa24e43dd2796d2baced76504baaab1107f10c6e4) | Rehearsal network for Base |
+
+- Live demo: [pools.frenkia.com](https://pools.frenkia.com) (Sepolia test network; connect a wallet set to Sepolia)
+
+The Base deployment has completed a full cycle with real USDC: an initiative was created, funded, its milestone submitted, approved by the committee and withdrawn by the grantee.
+
+> **Status: unaudited beta.** No independent audit has been done. The Base contract holds real USDC, so it is capped at deployment: at most 500 USDC per initiative and 5,000 USDC held in total. The caps cannot be raised; larger limits would mean a new contract after an audit. Only contribute what you can afford to lose. See [the threat model](docs/THREAT_MODEL.md) for what it protects against and what it cannot.
 
 ## How it works
 
 1. **Create.** Someone proposes an initiative: a funding goal split into 1 to 10 milestones, a funding period of 1 to 90 days, a minimum share of the goal needed to go ahead, a grantee (or an open call, see below), and a review committee of 3 to 9 wallets with an approval threshold. The committee is fixed at creation and can never be changed.
-2. **Fund.** Anyone can contribute test USDC until the deadline. If the goal is reached, the initiative starts immediately.
+2. **Fund.** Anyone can contribute USDC until the deadline. If the goal is reached, the initiative starts immediately.
 3. **Settle.** If the deadline passes below the goal but above the minimum, anyone can start it with every milestone scaled down in proportion to what was raised. Below the minimum, it fails and everyone can claim a full refund.
 4. **Deliver.** The grantee submits evidence (a link) for the current milestone. The committee has 14 days to vote. When the approvals reach the threshold, the milestone's amount is credited to the grantee, who withdraws it.
 5. **Reject or stall.** If too many reviewers reject, or the committee stays silent for 14 days, that round is used up. A milestone gets at most 3 rounds, after which the initiative fails. If the grantee submits nothing for 60 days, anyone can cancel it.
@@ -50,6 +58,8 @@ Other properties worth knowing:
 | Review rounds per milestone | 3 |
 | Protocol fee | none |
 | Minimum contribution | 1 USDC |
+| Largest goal per initiative | 500 USDC on Base (beta cap, fixed at deployment) |
+| Most the contract may hold | 5,000 USDC on Base (beta cap, fixed at deployment) |
 
 ## The app
 
@@ -60,6 +70,7 @@ A Next.js front end reads everything straight from the contract. There is no bac
 - **My activity and profiles:** what a wallet has backed, created, reviewed and can withdraw or claim.
 - **Stats and leaderboards:** totals, funding over time, top backers and most active reviewers, plus a live activity feed.
 - **Help:** FAQ, Terms and Risks, and a Support page.
+- **Attribution:** transactions sent on Base carry a [Base Builder Code](https://docs.base.org/apps/builder-codes/builder-codes) (ERC-8021). Wallets that support the `dataSuffix` capability add it themselves; for others the app appends it to the call.
 
 ## Run it locally
 
@@ -106,7 +117,18 @@ packages/
 docs/        threat model
 ```
 
-The contract is `packages/hardhat/contracts/MilestonePools.sol`. The deploy script also deploys a mintable test USDC, which is for test networks only. A real deployment would pass real token addresses to the constructor.
+The contract is `packages/hardhat/contracts/MilestonePools.sol`.
+
+The deploy script chooses what to deploy from the chain ID the node reports (see `packages/hardhat/rocketh/plan.ts`):
+
+- **Local chains and test networks** (Hardhat, Sepolia, Base Sepolia, Arbitrum Sepolia, OP Sepolia) get a mintable test USDC and generous limits.
+- **Base, Arbitrum One and OP Mainnet** use Circle's USDC and beta caps. Override the caps when deploying with `POOLS_MIN_CONTRIBUTION`, `POOLS_MAX_GOAL` and `POOLS_TOTAL_CAP` (in USDC).
+- **Any other chain is refused**, so a real network can never be given a test token by mistake.
+
+```bash
+yarn deploy --network base
+yarn verify --network base
+```
 
 ## Documentation
 
@@ -120,4 +142,4 @@ Solidity, Hardhat, OpenZeppelin, Next.js, React, wagmi, viem, RainbowKit, Tailwi
 
 ## License
 
-MIT. The starter code is MIT licensed by BuidlGuidl; see [LICENCE](LICENCE).
+MIT. The starter code is MIT licensed by BuidlGuidl; both notices are in [LICENSE](LICENSE).
