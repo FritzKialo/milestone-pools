@@ -5,6 +5,1480 @@
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
 const deployedContracts = {
+  8453: {
+    MilestonePools: {
+      address: "0x50ad6c7e2f6c1598ccd35a3e0194abd71a470fab",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "address[]",
+              name: "tokens",
+              type: "address[]",
+            },
+            {
+              internalType: "uint256[]",
+              name: "minimums",
+              type: "uint256[]",
+            },
+            {
+              internalType: "uint256[]",
+              name: "maxGoals",
+              type: "uint256[]",
+            },
+            {
+              internalType: "uint256[]",
+              name: "totalCaps",
+              type: "uint256[]",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "constructor",
+        },
+        {
+          inputs: [],
+          name: "AlreadyVoted",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "BelowMinimum",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "CapReached",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "DuplicateToken",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ExceedsGoal",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "FeeOnTransferToken",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "FundingClosed",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "GoalTooLarge",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidCandidate",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidDuration",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidGrantee",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidLimit",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidMilestones",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidMinimum",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidQualifyBps",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidReviewers",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidThreshold",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidToken",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "LengthMismatch",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NoTokens",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotGrantee",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotReviewer",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NothingToClaim",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NothingToSettle",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ReentrancyGuardReentrantCall",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ReviewWindowClosed",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ReviewWindowOpen",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+          ],
+          name: "SafeERC20FailedOperation",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "SubmissionWindowOpen",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "TokenNotAllowed",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "TooManyTokens",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "UnknownInitiative",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "WrongPhase",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "WrongStatus",
+          type: "error",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "funder",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "raised",
+              type: "uint256",
+            },
+          ],
+          name: "Contributed",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "bool",
+              name: "proceeded",
+              type: "bool",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "raised",
+              type: "uint256",
+            },
+          ],
+          name: "FundingSettled",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "candidate",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "pitchURI",
+              type: "string",
+            },
+          ],
+          name: "GranteeApplied",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "grantee",
+              type: "address",
+            },
+          ],
+          name: "GranteeSelected",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "reviewer",
+              type: "address",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "candidate",
+              type: "address",
+            },
+          ],
+          name: "GranteeVote",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "refundPool",
+              type: "uint256",
+            },
+          ],
+          name: "InitiativeCancelled",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+          ],
+          name: "InitiativeCompleted",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "proposer",
+              type: "address",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "address",
+              name: "grantee",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "goal",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint16",
+              name: "qualifyBps",
+              type: "uint16",
+            },
+            {
+              indexed: false,
+              internalType: "uint64",
+              name: "fundingDeadline",
+              type: "uint64",
+            },
+            {
+              indexed: false,
+              internalType: "uint8",
+              name: "threshold",
+              type: "uint8",
+            },
+            {
+              indexed: false,
+              internalType: "uint8",
+              name: "category",
+              type: "uint8",
+            },
+          ],
+          name: "InitiativeCreated",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256[]",
+              name: "milestoneAmounts",
+              type: "uint256[]",
+            },
+            {
+              indexed: false,
+              internalType: "address[]",
+              name: "reviewers",
+              type: "address[]",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "metadataURI",
+              type: "string",
+            },
+          ],
+          name: "InitiativeDetails",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "refundPool",
+              type: "uint256",
+            },
+          ],
+          name: "InitiativeFailed",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint8",
+              name: "milestone",
+              type: "uint8",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "grantee",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          name: "MilestoneApproved",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint8",
+              name: "milestone",
+              type: "uint8",
+            },
+            {
+              indexed: false,
+              internalType: "bool",
+              name: "lapsed",
+              type: "bool",
+            },
+          ],
+          name: "MilestoneRejected",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint8",
+              name: "milestone",
+              type: "uint8",
+            },
+            {
+              indexed: false,
+              internalType: "uint16",
+              name: "reviewNo",
+              type: "uint16",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "evidenceURI",
+              type: "string",
+            },
+          ],
+          name: "MilestoneSubmitted",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "funder",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          name: "Refunded",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint8",
+              name: "milestone",
+              type: "uint8",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "reviewer",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "bool",
+              name: "approve",
+              type: "bool",
+            },
+          ],
+          name: "ReviewVote",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "account",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          name: "Withdrawn",
+          type: "event",
+        },
+        {
+          inputs: [],
+          name: "BPS",
+          outputs: [
+            {
+              internalType: "uint16",
+              name: "",
+              type: "uint16",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "MAX_FUNDING_DURATION",
+          outputs: [
+            {
+              internalType: "uint64",
+              name: "",
+              type: "uint64",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "MAX_MILESTONES",
+          outputs: [
+            {
+              internalType: "uint8",
+              name: "",
+              type: "uint8",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "MAX_REVIEWERS",
+          outputs: [
+            {
+              internalType: "uint8",
+              name: "",
+              type: "uint8",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "MAX_ROUNDS",
+          outputs: [
+            {
+              internalType: "uint8",
+              name: "",
+              type: "uint8",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "MAX_TOKENS",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "MIN_FUNDING_DURATION",
+          outputs: [
+            {
+              internalType: "uint64",
+              name: "",
+              type: "uint64",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "MIN_QUALIFY_BPS",
+          outputs: [
+            {
+              internalType: "uint16",
+              name: "",
+              type: "uint16",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "MIN_REVIEWERS",
+          outputs: [
+            {
+              internalType: "uint8",
+              name: "",
+              type: "uint8",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "REVIEW_PERIOD",
+          outputs: [
+            {
+              internalType: "uint64",
+              name: "",
+              type: "uint64",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "SELECTION_PERIOD",
+          outputs: [
+            {
+              internalType: "uint64",
+              name: "",
+              type: "uint64",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "SUBMISSION_WINDOW",
+          outputs: [
+            {
+              internalType: "uint64",
+              name: "",
+              type: "uint64",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "string",
+              name: "pitchURI",
+              type: "string",
+            },
+          ],
+          name: "applyAsGrantee",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+          ],
+          name: "cancelIdle",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "candidate",
+              type: "address",
+            },
+          ],
+          name: "candidateVotes",
+          outputs: [
+            {
+              internalType: "uint8",
+              name: "votes",
+              type: "uint8",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          name: "contribute",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "funder",
+              type: "address",
+            },
+          ],
+          name: "contributions",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              components: [
+                {
+                  internalType: "address",
+                  name: "token",
+                  type: "address",
+                },
+                {
+                  internalType: "address",
+                  name: "grantee",
+                  type: "address",
+                },
+                {
+                  internalType: "uint256[]",
+                  name: "milestoneAmounts",
+                  type: "uint256[]",
+                },
+                {
+                  internalType: "uint16",
+                  name: "qualifyBps",
+                  type: "uint16",
+                },
+                {
+                  internalType: "uint64",
+                  name: "fundingDuration",
+                  type: "uint64",
+                },
+                {
+                  internalType: "address[]",
+                  name: "reviewers",
+                  type: "address[]",
+                },
+                {
+                  internalType: "uint8",
+                  name: "threshold",
+                  type: "uint8",
+                },
+                {
+                  internalType: "uint8",
+                  name: "category",
+                  type: "uint8",
+                },
+                {
+                  internalType: "string",
+                  name: "metadataURI",
+                  type: "string",
+                },
+              ],
+              internalType: "struct MilestonePools.CreateParams",
+              name: "p",
+              type: "tuple",
+            },
+          ],
+          name: "createInitiative",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+            {
+              internalType: "address",
+              name: "account",
+              type: "address",
+            },
+          ],
+          name: "credits",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+          ],
+          name: "expireReview",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+          ],
+          name: "getInitiative",
+          outputs: [
+            {
+              components: [
+                {
+                  internalType: "address",
+                  name: "token",
+                  type: "address",
+                },
+                {
+                  internalType: "address",
+                  name: "grantee",
+                  type: "address",
+                },
+                {
+                  internalType: "address",
+                  name: "proposer",
+                  type: "address",
+                },
+                {
+                  internalType: "uint256",
+                  name: "goal",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "raised",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "released",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "refundPool",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint64",
+                  name: "fundingDeadline",
+                  type: "uint64",
+                },
+                {
+                  internalType: "uint64",
+                  name: "selectionDeadline",
+                  type: "uint64",
+                },
+                {
+                  internalType: "uint64",
+                  name: "lastActivity",
+                  type: "uint64",
+                },
+                {
+                  internalType: "uint64",
+                  name: "reviewStartedAt",
+                  type: "uint64",
+                },
+                {
+                  internalType: "uint32",
+                  name: "backers",
+                  type: "uint32",
+                },
+                {
+                  internalType: "uint16",
+                  name: "qualifyBps",
+                  type: "uint16",
+                },
+                {
+                  internalType: "uint16",
+                  name: "reviewNo",
+                  type: "uint16",
+                },
+                {
+                  internalType: "uint8",
+                  name: "reviewerCount",
+                  type: "uint8",
+                },
+                {
+                  internalType: "uint8",
+                  name: "threshold",
+                  type: "uint8",
+                },
+                {
+                  internalType: "uint8",
+                  name: "currentMilestone",
+                  type: "uint8",
+                },
+                {
+                  internalType: "uint8",
+                  name: "submissionsForCurrent",
+                  type: "uint8",
+                },
+                {
+                  internalType: "uint8",
+                  name: "approvals",
+                  type: "uint8",
+                },
+                {
+                  internalType: "uint8",
+                  name: "rejections",
+                  type: "uint8",
+                },
+                {
+                  internalType: "enum MilestonePools.Status",
+                  name: "status",
+                  type: "uint8",
+                },
+                {
+                  internalType: "enum MilestonePools.Phase",
+                  name: "phase",
+                  type: "uint8",
+                },
+              ],
+              internalType: "struct MilestonePools.Initiative",
+              name: "",
+              type: "tuple",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+          ],
+          name: "getMilestoneAmounts",
+          outputs: [
+            {
+              internalType: "uint256[]",
+              name: "",
+              type: "uint256[]",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+          ],
+          name: "getReviewers",
+          outputs: [
+            {
+              internalType: "address[]",
+              name: "",
+              type: "address[]",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "uint16",
+              name: "reviewNo",
+              type: "uint16",
+            },
+            {
+              internalType: "address",
+              name: "reviewer",
+              type: "address",
+            },
+          ],
+          name: "hasVoted",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "initiativeCount",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+          ],
+          name: "isQualified",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "account",
+              type: "address",
+            },
+          ],
+          name: "isReviewer",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+          ],
+          name: "liabilities",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+          ],
+          name: "maxGoal",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+          ],
+          name: "minContribution",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+          ],
+          name: "refund",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "account",
+              type: "address",
+            },
+          ],
+          name: "refundableOf",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "reviewer",
+              type: "address",
+            },
+          ],
+          name: "reviewerChoice",
+          outputs: [
+            {
+              internalType: "address",
+              name: "candidate",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+          ],
+          name: "settle",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "string",
+              name: "evidenceURI",
+              type: "string",
+            },
+          ],
+          name: "submitMilestone",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+          ],
+          name: "totalCap",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "candidate",
+              type: "address",
+            },
+          ],
+          name: "voteGrantee",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "bool",
+              name: "approve",
+              type: "bool",
+            },
+          ],
+          name: "voteMilestone",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+          ],
+          name: "withdraw",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 53032007,
+    },
+  },
   31337: {
     MilestonePools: {
       address: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",

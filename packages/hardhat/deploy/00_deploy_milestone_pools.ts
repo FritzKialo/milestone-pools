@@ -4,15 +4,21 @@ import { planFor } from "../rocketh/plan.js";
 /**
  * Deploys MilestonePools.
  *
+ * The network is identified by the chain ID reported by the node, never by its name.
  * On local and test networks it also deploys a free test USDC (6 decimals) and uses generous limits.
  * On Base, Arbitrum and Optimism it uses Circle's real USDC and small beta limits (500 USDC per initiative,
- * 5,000 USDC held in total, unless overridden). See ../rocketh/plan.ts. Limits are fixed at deployment.
+ * 5,000 USDC held in total, unless overridden). Any other chain is refused. See ../rocketh/plan.ts.
+ * Limits are fixed at deployment.
  */
 export default deployScript(
   async env => {
     const { deployer } = env.namedAccounts;
-    const networkName = (env as unknown as { network: { name: string } }).network.name;
-    const plan = planFor(networkName);
+    const chainId = Number(await env.network.provider.request({ method: "eth_chainId" }));
+    if (chainId !== env.network.chain.id) {
+      throw new Error(`The node reports chain ${chainId}, but the configuration expects ${env.network.chain.id}.`);
+    }
+    const plan = planFor(chainId);
+    console.log(`Network:         ${env.name} (chain ${chainId}), ${plan.mock ? "test network" : "real network"}`);
 
     let tokenAddress = plan.token as `0x${string}` | undefined;
     if (plan.mock) {
