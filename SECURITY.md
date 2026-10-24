@@ -4,7 +4,12 @@ Milestone Pools holds funds in a smart contract, so security reports are welcome
 
 ## Status
 
-The contract has **not yet had an independent audit**. It is live on the Sepolia test network only. Until an audit is complete, any deployment with real funds is capped (see [docs/AUDIT-PACK.md](docs/AUDIT-PACK.md)) and should be treated as a beta.
+The contract has **not yet had an independent audit**. It runs in two places:
+
+- **Base:** a capped beta holding real USDC, at [`0x50ad6c7e2f6c1598ccd35a3e0194abd71a470fab`](https://basescan.org/address/0x50ad6c7e2f6c1598ccd35a3e0194abd71a470fab#code). Each initiative can raise at most 500 USDC and the contract can hold at most 5,000 USDC in total. These caps are fixed at deployment and cannot be raised (see [docs/AUDIT-PACK.md](docs/AUDIT-PACK.md)).
+- **Sepolia:** a public demo with a free test token, at [`0xb09af45694a3455998380033bb75703cdc087e88`](https://sepolia.etherscan.io/address/0xb09af45694a3455998380033bb75703cdc087e88#code).
+
+Treat the Base deployment as a beta and only contribute what you can afford to lose.
 
 ## Reporting a vulnerability
 
@@ -21,7 +26,8 @@ There is no bug bounty at the moment. Credit in the fix notes is offered to anyo
 
 In scope:
 
-- `packages/hardhat/contracts/MilestonePools.sol` and its deployments.
+- `packages/hardhat/contracts/MilestonePools.sol` and its deployments, above all the Base contract, which holds real funds.
+- The deploy plan in `packages/hardhat/rocketh/plan.ts`, which decides the token and caps for each network.
 
 Out of scope:
 
@@ -33,5 +39,6 @@ Out of scope:
 ## Design limits that reduce risk
 
 - No owner, admin, pause or upgrade function. The token allowlist and the limits are fixed at deployment.
-- Per-token cap on any single initiative's goal and on the total the contract holds at once.
+- Per-token cap on any single initiative's goal and on the total the contract holds at once: 500 USDC and 5,000 USDC on Base.
+- The deploy script identifies the network by chain ID and refuses any chain without a configured token, so a real network cannot be given a test token by mistake.
 - Pull payments only: grantees withdraw approved milestones and backers claim refunds.
