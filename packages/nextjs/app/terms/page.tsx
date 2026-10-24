@@ -5,8 +5,8 @@ import { IS_TESTNET } from "~~/lib/site";
 
 export const metadata = { title: "Terms & Risks" };
 
-const VERSION = "1.1";
-const UPDATED = "16 October 2026";
+const VERSION = "1.2";
+const UPDATED = "24 October 2026";
 
 const Section = ({ id, title, children }: { id: string; title: string; children: React.ReactNode }) => (
   <section id={id} className="space-y-3 scroll-mt-24">
@@ -161,8 +161,8 @@ const Terms: NextPage = () => (
         {!IS_TESTNET && (
           <Risk title="Beta limits">
             The contracts are in a limited beta. Each has a cap on the size of a single initiative and on the total it
-            may hold. The limits are fixed in the contract and exist to keep the possible loss small. They are not a
-            guarantee of safety.
+            may hold: on Base, 500 USDC per initiative and 5,000 USDC in total. The limits are fixed in the contract and
+            exist to keep the possible loss small. They are not a guarantee of safety.
           </Risk>
         )}
         <Risk title="Mistakes are permanent">
@@ -224,7 +224,13 @@ const Terms: NextPage = () => (
       </p>
       <ul className="list-disc pl-6 space-y-1 text-sm">
         <li>
-          <strong>1.0</strong> ({UPDATED}): first version.
+          <strong>1.2</strong> ({UPDATED}): states the beta limits of the Base deployment.
+        </li>
+        <li>
+          <strong>1.1</strong> (16 October 2026): previous version.
+        </li>
+        <li>
+          <strong>1.0</strong>: first version.
         </li>
       </ul>
     </Section>
