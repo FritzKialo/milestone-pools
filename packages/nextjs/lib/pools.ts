@@ -252,14 +252,17 @@ export type PoolEvent = {
 
 type ChainClient = NonNullable<ReturnType<typeof getPublicClient>>;
 
-/** Largest block range asked for in one eth_getLogs call, before a node says it is too much. */
-const MAX_LOG_SPAN = 50_000n;
 /** Smallest range worth trying. A node that refuses even this is reported as an error. */
 const MIN_LOG_SPAN = 10n;
 /** Retries for rate limits, timeouts and dropped connections, which a smaller range would not fix. */
 const TRANSIENT_RETRIES = 3;
 
-/** Range each network's node accepted last, so later scans start there instead of learning it again. */
+/**
+ * Range each network's providers accepted last, so later scans start there instead of learning it again.
+ * With no entry, the whole remaining range is asked for in one call: the transport falls back from a provider that
+ * refuses a large range (e.g. WalletConnect's RPC, max 50,000 blocks) to one that accepts it (e.g. Alchemy), which
+ * reads the full history in one request. Starting with small chunks would skip that fallback and take ~200 calls.
+ */
 const logSpan = new Map<number, bigint>();
 
 const errorText = (e: unknown): string => {
@@ -273,7 +276,7 @@ const errorText = (e: unknown): string => {
 
 /** Errors that come from the node being busy or unreachable, not from the size of the request. */
 const isTransientError = (e: unknown) =>
-  /\b429\b|\b50[234]\b|rate.?limit|too many requests|timed? ?out|timeout|fetch failed|network ?error|ECONNRESET|socket/i.test(
+  /\b429\b|\b50[234]\b|rate.?limit|request limit|too many requests|timed? ?out|timeout|fetch failed|network ?error|ECONNRESET|socket/i.test(
     errorText(e),
   );
 
@@ -320,7 +323,7 @@ async function fetchChainEvents(config: any, c: PoolChain): Promise<PoolEvent[]>
   }
 
   let events = cached.events.filter(e => e.blockNumber < from);
-  let span = logSpan.get(c.id) ?? MAX_LOG_SPAN;
+  let span = logSpan.get(c.id) ?? latest - from + 1n;
   let cursor = from;
   while (cursor <= latest) {
     const end = cursor + span - 1n < latest ? cursor + span - 1n : latest;

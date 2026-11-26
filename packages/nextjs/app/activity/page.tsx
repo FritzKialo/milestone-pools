@@ -421,7 +421,7 @@ const Activity: NextPage = () => {
         <Tile
           value={`${fmtAmount(totalBacked, 0)}`}
           label={`${TOKEN_SYMBOL} backed`}
-          note={`${backedList.length} initiatives`}
+          note={`${backedList.length} ${backedList.length === 1 ? "initiative" : "initiatives"}`}
         />
         <Tile value={`${fmtAmount(totalRefundable, 0)}`} label={`${TOKEN_SYMBOL} refundable`} />
         <Tile value={todos.length.toString()} label="Waiting on you" />
