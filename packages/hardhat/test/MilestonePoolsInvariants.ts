@@ -6,7 +6,34 @@ const { networkHelpers, ethers } = await network.create();
 const { time } = networkHelpers;
 
 const SEEDS = 25;
+const CAPPED_SEEDS = 10;
 const STEPS = 220;
+
+type Limits = {
+  minimum: bigint;
+  maxGoal: bigint;
+  totalCap: bigint;
+  /** Most initiatives the walk opens; more live initiatives make the total cap bind more often. */
+  maxInitiatives: number;
+  /** Whether GoalTooLarge and CapReached are expected (and therefore allowed) reverts. */
+  capped: boolean;
+};
+
+/** Effectively unlimited: exercises the accounting without the beta caps getting in the way. */
+const UNCAPPED: Limits = { minimum: 1n, maxGoal: 10n ** 30n, totalCap: 10n ** 30n, maxInitiatives: 3, capped: false };
+
+/**
+ * Tight caps in the shape of the Base beta (1 USDC minimum, goal limit, total cap), scaled down so that
+ * GoalTooLarge and CapReached actually happen: goals in this walk reach 1,500 USDC, and two live
+ * initiatives can exceed the 900 USDC total.
+ */
+const CAPPED: Limits = {
+  minimum: 1_000_000n,
+  maxGoal: 600_000_000n,
+  totalCap: 900_000_000n,
+  maxInitiatives: 5,
+  capped: true,
+};
 
 /**
  * Randomized multi-step runs. After EVERY step the following must hold exactly:
@@ -17,11 +44,12 @@ const STEPS = 220;
  *                          + credits not yet withdrawn
  *   3. no tokens are created or destroyed (pool + all actors == total minted)
  *   4. released <= raised, and released == sum of approved milestone amounts
+ *   5. liabilities(token) <= totalCap(token), and every goal <= maxGoal(token)
  *
  * Calls that are expected to revert are allowed to revert; anything else fails the run.
  * Every assertion message carries the seed, so a failing run can be replayed exactly.
  */
-async function runScenario(seed: number, stats: Record<string, number>) {
+async function runScenario(seed: number, stats: Record<string, number>, limits: Limits = UNCAPPED) {
   const rng = makeRng(seed);
   const signers = await ethers.getSigners();
   const funders = signers.slice(1, 6);
@@ -31,7 +59,12 @@ async function runScenario(seed: number, stats: Record<string, number>) {
 
   const token = await ethers.deployContract("MockERC20", ["USD Coin", "USDC", 6]);
   const tokenAddr = await token.getAddress();
-  const pools = await ethers.deployContract("MilestonePools", [[tokenAddr], [1n], [10n ** 30n], [10n ** 30n]]);
+  const pools = await ethers.deployContract("MilestonePools", [
+    [tokenAddr],
+    [limits.minimum],
+    [limits.maxGoal],
+    [limits.totalCap],
+  ]);
   const poolsAddr = await pools.getAddress();
 
   const MINT = usdc(5_000_000);
@@ -59,6 +92,7 @@ async function runScenario(seed: number, stats: Record<string, number>) {
     "SubmissionWindowOpen",
     "NothingToClaim",
     "InvalidCandidate",
+    ...(limits.capped ? ["GoalTooLarge", "CapReached"] : []),
   ]);
 
   async function attempt(name: string, call: () => Promise<any>) {
@@ -72,6 +106,7 @@ async function runScenario(seed: number, stats: Record<string, number>) {
       const decoded = typeof raw === "string" && raw.length >= 10 ? pools.interface.parseError(raw) : null;
       if (decoded && allowedErrors.has(decoded.name)) {
         stats[`${name}:reverted`] = (stats[`${name}:reverted`] ?? 0) + 1;
+        stats[`revert:${decoded.name}`] = (stats[`revert:${decoded.name}`] ?? 0) + 1;
         return false;
       }
       throw new Error(`seed ${seed}: unexpected failure in ${name}: ${e?.message ?? e}`);
@@ -85,6 +120,8 @@ async function runScenario(seed: number, stats: Record<string, number>) {
       const i = await pools.getInitiative(id);
       const status = Number(i.status);
       const amounts: bigint[] = await pools.getMilestoneAmounts(id);
+      // 5. goal limit
+      expect(i.goal, `seed ${seed} step ${step} (${label}) goal<=maxGoal id ${id}`).to.be.lte(limits.maxGoal);
       // 4. released consistency
       expect(i.released, `seed ${seed} step ${step} (${label}) released<=raised id ${id}`).to.be.lte(i.raised);
       const approved = Number(i.currentMilestone);
@@ -109,6 +146,8 @@ async function runScenario(seed: number, stats: Record<string, number>) {
     const balance = await token.balanceOf(poolsAddr);
     expect(liabilities, `seed ${seed} step ${step} (${label}) liabilities`).to.equal(expected);
     expect(balance, `seed ${seed} step ${step} (${label}) balance==liabilities`).to.equal(liabilities);
+    // 5. total cap
+    expect(liabilities, `seed ${seed} step ${step} (${label}) liabilities<=totalCap`).to.be.lte(limits.totalCap);
 
     let total = balance;
     for (const a of actors) total += await token.balanceOf(a.address);
@@ -124,7 +163,7 @@ async function runScenario(seed: number, stats: Record<string, number>) {
     const count = Number(await pools.initiativeCount());
     let label = "";
 
-    if (count === 0 || (count < 3 && rng.chance(0.08))) {
+    if (count === 0 || (count < limits.maxInitiatives && rng.chance(0.08))) {
       label = "create";
       const rfp = rng.chance(0.35);
       const mCount = rng.int(1, 3);
@@ -321,5 +360,25 @@ describe("MilestonePools: randomized invariants", function () {
       "final:Cancelled",
     ];
     for (const k of need) expect(stats[k] ?? 0, `no successful ${k} across all seeds`).to.be.gt(0);
+  });
+});
+
+describe("MilestonePools: randomized invariants with tight beta-style caps", function () {
+  this.timeout(600_000);
+
+  const stats: Record<string, number> = {};
+
+  for (let seed = 1; seed <= CAPPED_SEEDS; seed++) {
+    it(`capped seed ${seed}: invariants hold and liabilities never exceed the total cap`, async function () {
+      await runScenario(seed * 104_729, stats, CAPPED);
+    });
+  }
+
+  after(function () {
+    console.log("\n    capped action coverage:", JSON.stringify(stats));
+    // The caps must actually have been hit, alongside the ordinary paths.
+    // (BelowMinimum is covered by the unit tests: this walk's contributions are almost always at least 1 USDC.)
+    const need = ["create", "contribute", "refund", "withdraw", "revert:GoalTooLarge", "revert:CapReached"];
+    for (const k of need) expect(stats[k] ?? 0, `capped runs never hit ${k}`).to.be.gt(0);
   });
 });

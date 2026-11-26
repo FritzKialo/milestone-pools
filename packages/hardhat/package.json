@@ -19,7 +19,9 @@
     "hardhat-verify": "hardhat verify",
     "lint": "eslint",
     "lint-staged": "eslint",
-    "test": "hardhat test --network hardhat --gas-stats",
+    "test": "yarn test:unit && yarn test:invariants",
+    "test:unit": "hardhat test --network hardhat --gas-stats test/MilestonePools.ts",
+    "test:invariants": "hardhat test --network hardhat --no-compile test/MilestonePoolsInvariants.ts",
     "verify": "tsx scripts/runVerify.ts"
   },
   "dependencies": {
