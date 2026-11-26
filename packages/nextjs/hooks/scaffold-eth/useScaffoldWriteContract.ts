@@ -115,7 +115,9 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
       return;
     }
 
-    if (!accountChain?.id) {
+    // Check the address, not the chain: wagmi reports no chain when the wallet sits on a network
+    // the app does not list, and ensureNetwork below is what moves it to the right one.
+    if (!accountAddress) {
       notification.error("Please connect your wallet");
       return;
     }
@@ -203,7 +205,7 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
       notification.error("Target Contract is not deployed, did you forget to run `yarn deploy`?");
       return;
     }
-    if (!accountChain?.id) {
+    if (!accountAddress) {
       notification.error("Please connect your wallet");
       return;
     }
