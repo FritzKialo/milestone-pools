@@ -252,34 +252,46 @@ export type PoolEvent = {
 
 type ChainClient = NonNullable<ReturnType<typeof getPublicClient>>;
 
-/** Reads logs for a block range, splitting the range in half when a node refuses it as too large. */
-async function getLogsRange(client: ChainClient, address: `0x${string}`, from: bigint, to: bigint): Promise<any[]> {
-  try {
-    return await client.getLogs({ address, fromBlock: from, toBlock: to });
-  } catch (e) {
-    if (to - from < 2_000n) throw e;
-    const mid = from + (to - from) / 2n;
-    const a = await getLogsRange(client, address, from, mid);
-    const b = await getLogsRange(client, address, mid + 1n, to);
-    return [...a, ...b];
+/** Largest block range asked for in one eth_getLogs call, before a node says it is too much. */
+const MAX_LOG_SPAN = 50_000n;
+/** Smallest range worth trying. A node that refuses even this is reported as an error. */
+const MIN_LOG_SPAN = 10n;
+/** Retries for rate limits, timeouts and dropped connections, which a smaller range would not fix. */
+const TRANSIENT_RETRIES = 3;
+
+/** Range each network's node accepted last, so later scans start there instead of learning it again. */
+const logSpan = new Map<number, bigint>();
+
+const errorText = (e: unknown): string => {
+  const parts: string[] = [];
+  for (let cur: any = e, depth = 0; cur && depth < 5; cur = cur.cause, depth++) {
+    parts.push(String(cur.shortMessage ?? ""), String(cur.details ?? ""), String(cur.message ?? ""));
+    if (cur.status) parts.push(String(cur.status));
+  }
+  return parts.join(" ");
+};
+
+/** Errors that come from the node being busy or unreachable, not from the size of the request. */
+const isTransientError = (e: unknown) =>
+  /\b429\b|\b50[234]\b|rate.?limit|too many requests|timed? ?out|timeout|fetch failed|network ?error|ECONNRESET|socket/i.test(
+    errorText(e),
+  );
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function getLogsWithRetry(client: ChainClient, address: `0x${string}`, from: bigint, to: bigint) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await client.getLogs({ address, fromBlock: from, toBlock: to });
+    } catch (e) {
+      if (!isTransientError(e) || attempt >= TRANSIENT_RETRIES) throw e;
+      await sleep(500 * 2 ** attempt);
+    }
   }
 }
 
-// Each network is scanned once from its deployment block, then only the newest blocks on every refresh.
-const eventCache = new Map<number, { events: PoolEvent[]; next: bigint }>();
-const REORG_BLOCKS = 12n;
-
-async function fetchChainEvents(config: any, c: PoolChain): Promise<PoolEvent[]> {
-  const client = getPublicClient(config, { chainId: c.id });
-  if (!client) throw new Error(`No connection to ${c.label}`);
-  const cached = eventCache.get(c.id) ?? { events: [], next: BigInt(c.pools.deployedOnBlock) };
-  const latest = await client.getBlockNumber();
-  const from = cached.events.length > 0 && cached.next > REORG_BLOCKS ? cached.next - REORG_BLOCKS : cached.next;
-  if (latest < from) return cached.events;
-
-  const logs = await getLogsRange(client, c.pools.address, from, latest);
-  const parsed = parseEventLogs({ abi: c.pools.abi as any, logs }) as any[];
-  const fresh: PoolEvent[] = parsed.map(l => ({
+const toPoolEvents = (c: PoolChain, logs: any[]): PoolEvent[] =>
+  (parseEventLogs({ abi: c.pools.abi as any, logs }) as any[]).map(l => ({
     eventName: l.eventName as string,
     chainId: c.id,
     uid: l.args?.id !== undefined ? uidOf(c.id, l.args.id) : undefined,
@@ -288,11 +300,50 @@ async function fetchChainEvents(config: any, c: PoolChain): Promise<PoolEvent[]>
     logIndex: Number(l.logIndex),
     transactionHash: l.transactionHash as string,
   }));
-  const kept = cached.events.filter(e => e.blockNumber < from);
-  const events = [...kept, ...fresh];
-  eventCache.set(c.id, { events, next: latest + 1n });
+
+// Each network is scanned once from its deployment block, then only the newest blocks on every refresh.
+// Progress is saved after every chunk, so a failure part-way resumes where it stopped instead of starting over.
+const eventCache = new Map<number, { events: PoolEvent[]; next: bigint }>();
+/** Networks whose first full scan from the deployment block has finished. */
+const scanComplete = new Set<number>();
+const REORG_BLOCKS = 12n;
+
+async function fetchChainEvents(config: any, c: PoolChain): Promise<PoolEvent[]> {
+  const client = getPublicClient(config, { chainId: c.id });
+  if (!client) throw new Error(`No connection to ${c.label}`);
+  const cached = eventCache.get(c.id) ?? { events: [], next: BigInt(c.pools.deployedOnBlock) };
+  const latest = await client.getBlockNumber();
+  const from = cached.events.length > 0 && cached.next > REORG_BLOCKS ? cached.next - REORG_BLOCKS : cached.next;
+  if (latest < from) {
+    scanComplete.add(c.id);
+    return cached.events;
+  }
+
+  let events = cached.events.filter(e => e.blockNumber < from);
+  let span = logSpan.get(c.id) ?? MAX_LOG_SPAN;
+  let cursor = from;
+  while (cursor <= latest) {
+    const end = cursor + span - 1n < latest ? cursor + span - 1n : latest;
+    let logs: any[];
+    try {
+      logs = await getLogsWithRetry(client, c.pools.address, cursor, end);
+    } catch (e) {
+      // Anything other than a busy node is taken as "range too large": halve it and try the same blocks again.
+      if (isTransientError(e) || span <= MIN_LOG_SPAN) throw e;
+      span = span / 2n > MIN_LOG_SPAN ? span / 2n : MIN_LOG_SPAN;
+      logSpan.set(c.id, span);
+      continue;
+    }
+    events = [...events, ...toPoolEvents(c, logs)];
+    cursor = end + 1n;
+    eventCache.set(c.id, { events, next: cursor });
+  }
+  scanComplete.add(c.id);
   return events;
 }
+
+/** True once the network's history has been read in full at least once (false while it is still catching up). */
+export const isChainScanComplete = (chainId: number) => scanComplete.has(chainId);
 
 /** Events from every network on the site, each marked with its network. Newest scan is shared by every page through the query cache. */
 export function usePoolEvents() {

@@ -3,6 +3,7 @@
 import { use, useMemo } from "react";
 import Link from "next/link";
 import type { NextPage } from "next";
+import { BaseError, ContractFunctionRevertedError } from "viem";
 import { useReadContracts } from "wagmi";
 import { ArrowUpRightIcon } from "@heroicons/react/24/outline";
 import { ActionsPanel } from "~~/components/pools/ActionsPanel";
@@ -55,21 +56,33 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
   const id = BigInt(idNum);
   const now = useNow(15_000);
 
-  const { data: raw, isLoading } = useScaffoldReadContract({
+  // A revert (e.g. UnknownInitiative) is a definite answer, so it is not retried. Network errors are retried as usual.
+  const retryUnlessReverted = (failureCount: number, error: unknown) => !revertName(error) && failureCount < 3;
+  const {
+    data: raw,
+    failureReason: initiativeFailure,
+    failureCount: initiativeFailures,
+    refetch: refetchInitiative,
+  } = useScaffoldReadContract({
     contractName: "MilestonePools",
     functionName: "getInitiative",
     chainId,
     args: [id],
     watch: true,
-    query: { enabled: valid },
+    query: { enabled: valid, retry: retryUnlessReverted },
   });
-  const { data: plan } = useScaffoldReadContract({
+  const {
+    data: plan,
+    failureReason: planFailure,
+    failureCount: planFailures,
+    refetch: refetchPlan,
+  } = useScaffoldReadContract({
     contractName: "MilestonePools",
     functionName: "getMilestoneAmounts",
     chainId,
     args: [id],
     watch: true,
-    query: { enabled: valid },
+    query: { enabled: valid, retry: retryUnlessReverted },
   });
   const { data: reviewersRaw } = useScaffoldReadContract({
     contractName: "MilestonePools",
@@ -109,7 +122,26 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
   if (!valid) {
     return <Notice title="That initiative does not exist" />;
   }
-  if (isLoading || !item || !plan) {
+  if (!item || !plan) {
+    // A read that keeps failing would otherwise leave the spinner up forever. failureReason is used rather than
+    // error because the block watcher restarts the query on every block, so it may never settle into an error.
+    const failure = initiativeFailure ?? planFailure;
+    if (failure && revertName(failure) === "UnknownInitiative") {
+      return <Notice title="That initiative does not exist" />;
+    }
+    const readError = Math.max(initiativeFailures, planFailures) >= 2 ? failure : null;
+    if (readError) {
+      return (
+        <Notice
+          title="This initiative could not be loaded"
+          detail="The network did not answer. Check your connection and try again."
+          onRetry={() => {
+            void refetchInitiative();
+            void refetchPlan();
+          }}
+        />
+      );
+    }
     return (
       <div className="flex justify-center py-24">
         <span className="loading loading-spinner loading-lg" />
@@ -380,12 +412,31 @@ const InitiativePage: NextPage<{ params: Promise<{ id: string }> }> = ({ params 
   );
 };
 
-const Notice = ({ title }: { title: string }) => (
+/** Name of the custom error a contract call reverted with, if that is why it failed. */
+const revertName = (error: unknown): string | undefined => {
+  if (error instanceof BaseError) {
+    const reverted = error.walk(e => e instanceof ContractFunctionRevertedError);
+    if (reverted instanceof ContractFunctionRevertedError && reverted.data?.errorName) return reverted.data.errorName;
+  }
+  // Fallback in case the error was wrapped by a different copy of viem.
+  const message = error instanceof Error ? error.message : String(error);
+  return /\bUnknownInitiative\b/.test(message) ? "UnknownInitiative" : undefined;
+};
+
+const Notice = ({ title, detail, onRetry }: { title: string; detail?: string; onRetry?: () => void }) => (
   <div className="mx-auto max-w-xl space-y-4 px-4 py-24 text-center">
     <h1 className="text-2xl font-bold">{title}</h1>
-    <Link href="/explore" className="btn btn-primary">
-      Back to Explore
-    </Link>
+    {detail && <p className="opacity-80">{detail}</p>}
+    <div className="flex flex-wrap justify-center gap-2">
+      {onRetry && (
+        <button type="button" className="btn btn-primary" onClick={onRetry}>
+          Try again
+        </button>
+      )}
+      <Link href="/explore" className={onRetry ? "btn btn-ghost" : "btn btn-primary"}>
+        Back to Explore
+      </Link>
+    </div>
   </div>
 );
 
