@@ -9,18 +9,19 @@ Everything an auditor or grant reviewer needs to scope and review Milestone Pool
 | Contract | `packages/hardhat/contracts/MilestonePools.sol`, about 576 lines |
 | Compiler | Solidity 0.8.30, pinned |
 | Dependencies | OpenZeppelin Contracts 5.x: `SafeERC20`, `ReentrancyGuard` |
-| Out of scope | `MockERC20` (test token), the web app, deployment scripts (reviewed on request) |
+| Out of scope | `MockERC20` (test token), the web app. Deployment scripts only for the question in section 9, item 6. |
 
 ## 2. Deployments
 
 | Network | MilestonePools | Token | Status |
 | --- | --- | --- | --- |
-| Sepolia (11155111) | `0xb09af45694a3455998380033bb75703cdc087e88` | MockUSDC `0xa24e43dd2796d2baced76504baaab1107f10c6e4` | Live, source verified on Etherscan |
-| Base (8453) | not deployed | Circle USDC `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | Planned |
+| Base (8453) | `0x50ad6c7e2f6c1598ccd35a3e0194abd71a470fab` | Circle USDC `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | Live capped beta holding real USDC, source verified on BaseScan |
+| Sepolia (11155111) | `0xb09af45694a3455998380033bb75703cdc087e88` | MockUSDC `0xa24e43dd2796d2baced76504baaab1107f10c6e4` | Live demo, source verified on Etherscan |
+| Base Sepolia (84532) | `0x7f3d99ac9a6030c7801de1ab463ea8c27a2dc28a` | MockUSDC `0xa24e43dd2796d2baced76504baaab1107f10c6e4` | Rehearsal network for Base |
 | Arbitrum One (42161) | not deployed | Circle USDC `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` | Planned |
 | OP Mainnet (10) | not deployed | Circle USDC `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85` | Planned |
 
-Planned mainnet deployments use beta limits fixed in the constructor: 1 USDC minimum contribution, 500 USDC goal limit per initiative, 5,000 USDC total held.
+The Base deployment, and any later mainnet deployment, uses beta limits fixed in the constructor: 1 USDC minimum contribution, 500 USDC goal limit per initiative, 5,000 USDC total held. They cannot be raised; larger limits mean a new contract.
 
 ## 3. What the contract does
 
@@ -98,8 +99,9 @@ These are exercised by the randomized invariant tests described below.
 
 ## 8. Testing
 
-- **81 automated tests** (`packages/hardhat/test/`), covering deployment, creation, contribution, beta limits, settlement, open-call selection, milestone delivery, idle cancellation, refund rounding, reentrancy and views.
-- **Randomized invariant tests** (`MilestonePoolsInvariants.ts`) run seeded random sequences of actions and check solvency, conservation and exact accounting after every step.
+- **91 automated tests** (`packages/hardhat/test/`): 56 unit tests covering deployment, creation, contribution, beta limits, settlement, open-call selection, milestone delivery, idle cancellation, refund rounding, reentrancy and views, plus 35 randomized invariant runs.
+- **Randomized invariant tests** (`MilestonePoolsInvariants.ts`) run seeded random sequences of actions and check solvency, conservation and exact accounting after every step. 25 runs use effectively unlimited caps; 10 runs use tight beta-style caps (1 USDC minimum, 600 USDC goal limit, 900 USDC total) so that `GoalTooLarge` and `CapReached` are actually hit, and also check that `liabilities` never exceeds the total cap and no goal exceeds the goal limit.
+- **CI** runs the full test suite on every push and pull request to `main`.
 - **Static analysis:** Slither (100 detectors, Solidity 0.8.30) reported 25 results in five categories, none high or medium. Reviewed as follows: strict equality on the final-milestone check is intended; two never-initialised locals are accumulators that start at zero; timestamp comparisons use windows of days; assembly findings are inside OpenZeppelin; one cyclomatic-complexity note on `createInitiative`.
 
 Reproduce:
